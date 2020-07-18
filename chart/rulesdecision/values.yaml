@@ -1,0 +1,23 @@
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+rulesdecision:
+  name: rulesdecision
+  version: v1
+  replicaCount: 1
+  image:
+    repository: us.icr.io/prometeo/rulesdecision
+    tag: v3
+    pullPolicy: IfNotPresent
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  service:
+    servicePort: 8080
+istio:
+  virtualservices:
+    enabled: true
+  gateway:
+    enabled: true
+imagepullsecrets:
+  name: default-uk.icr.io
+

@@ -1,0 +1,10 @@
+Flask==1.0
+cloudant==2.4.0
+flasgger==0.6.4
+Flask-Cors
+Flask-RESTful==0.3.6
+flask-restplus
+gevent
+setuptools>=18.0
+cython
+Werkzeug==0.16.1

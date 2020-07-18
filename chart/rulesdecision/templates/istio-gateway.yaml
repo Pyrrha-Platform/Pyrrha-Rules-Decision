@@ -31,6 +31,8 @@ spec:
         prefix: /coreDecision
     - uri:
         prefix: /swaggerui
+    - uri:
+        prefix: /swagger.json
     route:
     - destination:
         host: rulesdecision

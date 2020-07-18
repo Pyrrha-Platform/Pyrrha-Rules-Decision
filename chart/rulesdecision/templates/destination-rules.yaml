@@ -1,10 +1,10 @@
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
-  name: rulesdecision
+  name: {{  .Values.rulesdecision.name }}
 spec:
-  host: rulesdecision
+  host: {{  .Values.rulesdecision.name }}
   subsets:
-  - name: {{  .Values.rulesdecision.version }}
+  - name: {{  .Values.rulesdecision.name }}
     labels:
       version: {{  .Values.rulesdecision.version }}

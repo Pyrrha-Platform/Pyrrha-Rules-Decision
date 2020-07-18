@@ -19,5 +19,5 @@ istio:
   gateway:
     enabled: true
 imagepullsecrets:
-  name: default-uk.icr.io
+  name: default-uk-icr-io
 

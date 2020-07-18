@@ -29,6 +29,8 @@ spec:
         exact: /
     - uri:
         prefix: /coreDecision
+    - uri:
+        prefix: /swaggerui
     route:
     - destination:
         host: rulesdecision

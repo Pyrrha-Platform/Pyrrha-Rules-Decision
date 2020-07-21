@@ -3,7 +3,7 @@
 rulesdecision:
   name: rulesdecision
   version: v1
-  replicaCount: 1
+  replicaCount: 2
   image:
     repository: us.icr.io/prometeo/rulesdecision
     tag: v3

@@ -2,7 +2,7 @@ from flask import Flask, Response, jsonify
 from flask_restplus import Api, Resource, fields, reqparse
 from flask_cors import CORS, cross_origin
 import os
-from prometeoAnalytics import prometeoAnalytics
+from gasExposureAnalytics import gasExposureAnalytics
 
 
 # The application
@@ -10,7 +10,7 @@ app = Flask(__name__)
 CORS(app)
 
 api_prometeo_analytics = Api(app, version='1.0', title="Calculates Time-Weighted Average exposures and exposure-limit status 'gauges' for all firefighters for the last minute.", validate=False)
-ns = api_prometeo_analytics.namespace('prometeoAnalytics', 'Calculates core Prometeo analytics')
+ns = api_prometeo_analytics.namespace('gasExposureAnalytics', 'Calculates core Prometeo analytics')
 
 # The API does not require any input data, but may optionally accept a list of Firefighter ID's as prompts to check for recently-received sensor records.
 model_input = api_prometeo_analytics.model('Enter the data:', {'firefighter_ids': fields.List(fields.String(description='Firefighter IDs'))})
@@ -20,7 +20,7 @@ model_input = api_prometeo_analytics.model('Enter the data:', {'firefighter_ids'
 port = int(os.getenv('PORT', 8080))
 
 # We initialize the prometeo Analytics engine.
-perMinuteAnalytics = prometeoAnalytics()
+perMinuteAnalytics = gasExposureAnalytics()
 
 
 # The ENDPOINT

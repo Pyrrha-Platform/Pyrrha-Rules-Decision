@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import sqlalchemy
 import json
-
+import os
 
 # Constants / definitions (not used as mutable variables)
 CONST_sensor_log_tablename : Final = 'firefighter_sensor_log'
@@ -24,7 +24,12 @@ class prometeoAnalytics(object):
             file.close()
 
         # db identifiers
-        SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:iznTZ6zNXz@159.122.237.12:31038/prometeo"
+        SQLALCHEMY_DATABASE_URI = ("mysql+pymysql://"+os.getenv('MARIADB_USER')
+                                    +":"+os.getenv("MARIADB_PASSWORD")
+                                    +"@"+os.getenv("MARIADB_HOST")
+                                    +":"+int(os.getenv("MARIADB_PORT"))
+                                    +"/prometeo")
+
         metadata=sqlalchemy.MetaData(SQLALCHEMY_DATABASE_URI)
         self.db_engine = metadata.bind
 
@@ -63,6 +68,7 @@ class prometeoAnalytics(object):
 
         if (sensor_log_df.empty) : print("No 'live' sensor records found in range ["+str(window_start)+" to "+str(window_end)+"]") # todo: write to a logfile somewhere?
         return sensor_log_df
+
 
     # Given up to 8 hours of data, calculates the time-weighted average and limit gauge (%) for all firefighters, for all supported gases, for all configured time periods.
     # sensor_log_chunk_df  : A time-indexed dataframe covering up to 8 hours of sensor data for all firefighters, for all supported gases. Requires firefighterID and supported gases as columns.

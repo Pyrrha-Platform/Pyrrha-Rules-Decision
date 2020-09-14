@@ -1,5 +1,5 @@
 ---
 applications:
-  - name: Core Decision Api
+  - name: Prometeo Analytics API
   - random-route: true
   - memory: 256M

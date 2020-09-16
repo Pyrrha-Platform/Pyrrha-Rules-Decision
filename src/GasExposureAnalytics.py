@@ -46,13 +46,18 @@ class GasExposureAnalytics(object):
 
         # By default, the analytics will run from a database.
         self._from_db = True
-        # For testing, they can also be run from a set of CSV files.
+
+        # For testing, the analytics can also be run from a set of CSV files.
         if list_of_csv_files is not None : 
             self._from_db = False
+
             print("Taking sensor readings *** from CSV ***") # todo: logfile?
+            # Allow clients to pass either single (non-list) CSV file path, or a list of CSV file paths
+            if not isinstance(list_of_csv_files, list) : list_of_csv_files = [list_of_csv_files]
             dataframes = []
             for csv_file in list_of_csv_files : 
-                df = pd.read_csv(csv_file, parse_dates=[TIMESTAMP_COL], index_col = TIMESTAMP_COL) # todo: how do paths work for testing?
+                df = pd.read_csv(csv_file, engine='python', parse_dates=[TIMESTAMP_COL], index_col = TIMESTAMP_COL) # todo: how do paths work for testing?
+                assert FIREFIGHTER_ID_COL in df.columns, "CSV files is missing key columns %s" % (required_cols)
                 dataframes.append(df)
             self._sensor_log_from_csv_df = pd.concat(dataframes)
 

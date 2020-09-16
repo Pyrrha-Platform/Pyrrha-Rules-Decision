@@ -17,7 +17,7 @@ istio:
   virtualservices:
     enabled: true
   gateway:
-    enabled: true
+    enabled: false
 imagepullsecrets:
   name: default-uk-icr-io
 

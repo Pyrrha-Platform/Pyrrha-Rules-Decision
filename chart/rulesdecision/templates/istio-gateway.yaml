@@ -2,7 +2,7 @@
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
-  name: prometeo-gateway
+  name: prometeo-rulesdecision-gateway
 spec:
   selector:
     istio: ingressgateway # use istio default controller
@@ -13,6 +13,7 @@ spec:
       protocol: HTTP
     hosts:
     - "*"
+{{ end }}
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -26,7 +27,15 @@ spec:
   http:
   - match:
     - uri:
-        exact: /
+        exact: /decision
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: {{ .Values.rulesdecision.name}}
+        port:
+          number: {{ .Values.rulesdecision.service.servicePort}}
+  - match:
     - uri:
         prefix: /coreDecision
     - uri:
@@ -35,7 +44,6 @@ spec:
         prefix: /swagger.json
     route:
     - destination:
-        host: rulesdecision
+        host: {{ .Values.rulesdecision.name}}
         port:
           number: {{ .Values.rulesdecision.service.servicePort}}
-{{ end }}

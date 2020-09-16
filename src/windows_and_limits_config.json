@@ -1,0 +1,7 @@
+[
+    { "label": "10min", "mins": 10,  "gas_limits": { "carbon_monoxide": 420, "nitrogen_dioxide": 20,  "formaldehyde": 14, "acrolein": 0.44 }},
+    { "label": "30min", "mins": 30,  "gas_limits": { "carbon_monoxide": 150, "nitrogen_dioxide": 15,  "formaldehyde": 14, "acrolein": 0.18 }},
+    { "label": "60min", "mins": 60,  "gas_limits": { "carbon_monoxide": 83,  "nitrogen_dioxide": 12,  "formaldehyde": 14, "acrolein": 0.1  }},
+    { "label": "4hr",   "mins": 240, "gas_limits": { "carbon_monoxide": 33,  "nitrogen_dioxide": 8.2, "formaldehyde": 14, "acrolein": 0.1  }},
+    { "label": "8hr",   "mins": 480, "gas_limits": { "carbon_monoxide": 27,  "nitrogen_dioxide": 6.7, "formaldehyde": 14, "acrolein": 0.1  }}
+]

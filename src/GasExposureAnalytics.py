@@ -6,33 +6,80 @@ import sqlalchemy
 
 
 # Constants / definitions
+
+# Database constants
 SENSOR_LOG_TABLE = 'firefighter_sensor_log'
 ANALYTICS_TABLE = 'firefighter_status_analytics'
 FIREFIGHTER_ID_COL = 'firefighter_id'
 FIREFIGHTER_ID_COL_TYPE = sqlalchemy.types.VARCHAR(length=20) # mySQL needs to be told this explicitly in order to generate correct SQL
 TIMESTAMP_COL = 'timestamp_mins'
+# Normally the 'analytics' LED color will be the same as the 'device' LED color, but in a disconnected scenario, they may be different. We want to capture both. 
+STATUS_LED_COL = 'analytics_status_LED'
+TWA_SUFFIX = 'twa'
+GAUGE_SUFFIX = 'gauge'
+GREEN = 1
+YELLOW = 2
+RED = 3
 
+# Status constants - percentages that define green/red status (yellow is the name of a configuration parameter)
+GREEN_RANGE_START = 0
+RED_RANGE_START = 99
+RED_RANGE_END = np.Inf
+
+# Configuration constants - for reading values from config files.
+CONFIG_FILENAME = 'prometeo_config.json'
+WINDOWS_AND_LIMITS_PROPERTY = 'windows_and_limits'
+SUPPORTED_GASES_PROPERTY = 'supported_gases'
+YELLOW_WARNING_PERCENT_PROPERTY = 'yellow_warning_percent'
+GAS_LIMITS_PROPERTY = 'gas_limits'
 
 class GasExposureAnalytics(object):
 
 
+    # Validate the configuration - print helpful error messages if invalid.
+    def _validate_config(self) :
+
+        # Check that all configured windows cover the same set of gases (i.e. that the first window covers the same set of gases as all other windows)
+        # Note: Set operations are valid for .keys() views [https://docs.python.org/3.8/library/stdtypes.html#dictionary-view-objects]
+        mismatched_configs_idx = [idx for idx, window in enumerate(self.WINDOWS_AND_LIMITS) if (window[GAS_LIMITS_PROPERTY].keys() != self.WINDOWS_AND_LIMITS[0][GAS_LIMITS_PROPERTY].keys())]
+        mismatched_configs = []
+        if mismatched_configs_idx :
+            mismatched_configs = [self.WINDOWS_AND_LIMITS[0]]
+            mismatched_configs += [self.WINDOWS_AND_LIMITS[idx] for idx in mismatched_configs_idx]
+        assert not mismatched_configs_idx, \
+            "%s : The '%s' for every time-window must cover the same set of gases - but these have mis-matches %s" % (CONFIG_FILENAME, GAS_LIMITS_PROPERTY, mismatched_configs)
+
+        # Check that the supported gases are covered by the configuration        
+        assert set(self.SUPPORTED_GASES).issubset(self.WINDOWS_AND_LIMITS[0][GAS_LIMITS_PROPERTY].keys()), \
+            "%s : One or more of the '%s' %s has no limits defined in '%s' %s." \
+            % (CONFIG_FILENAME, SUPPORTED_GASES_PROPERTY, str(self.SUPPORTED_GASES), WINDOWS_AND_LIMITS_PROPERTY, str(list(self.WINDOWS_AND_LIMITS[0][GAS_LIMITS_PROPERTY].keys())))
+
+        # Check there's a valid definition of yellow - should be a percentage between 1 and 99
+        assert ( (self.YELLOW_WARNING_PERCENT > 0) and (self.YELLOW_WARNING_PERCENT < 100) ), \
+            "%s : '%s' should be greater than 0 and less than 100 (percent), but is %s" % (CONFIG_FILENAME, YELLOW_WARNING_PERCENT_PROPERTY, self.YELLOW_WARNING_PERCENT)
+
+        return
+
+
     def __init__(self, list_of_csv_files=None):
 
-        # Get configuration (1) currently supported/active gases and (2) gas exposure windows and limits (e.g. from AEGL).
-
-        # windows_and_limits   : A list detailing every supported time-window over which to calcuate the time-weighted
-        #                        average (label, number of minutes and gas limit gauges for each window).
-        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src/windows_and_limits_config.json')) as file:
-            self._windows_and_limits = json.load(file) # todo: how do paths work?
+        # Get configuration
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src/' + CONFIG_FILENAME)) as file:
+            configuration = json.load(file)
             file.close()
 
-        
-        # supported_gases   : The list of gases that Prometeo devices currently have sensors for.
-        #                     To automatically enable analytics for new gases, simply add them to this list.
-        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src/supported_gases_config.json')) as file:
-            self._supported_gases = json.load(file) # todo: how do paths work?
-            file.close()
+        # WINDOWS_AND_LIMITS   : A list detailing every supported time-window over which to calcuate the time-weighted
+        #                        average (label, number of minutes and gas limit gauges for each window) - e.g. from AEGL-2.
+        self.WINDOWS_AND_LIMITS = configuration[WINDOWS_AND_LIMITS_PROPERTY]
+        # # SUPPORTED_GASES   : The list of gases that Prometeo devices currently have sensors for.
+        # #                     To automatically enable analytics for new gases, simply add them to this list.
+        self.SUPPORTED_GASES = configuration[SUPPORTED_GASES_PROPERTY]
+        # # YELLOW_WARNING_PERCENT : yellow is a configurable percentage - the status LED will go yellow when any gas 
+        # #                          reaches that percentage (e.g. 80%) of the exposure limit for any time-window.
+        self.YELLOW_WARNING_PERCENT = configuration[YELLOW_WARNING_PERCENT_PROPERTY]
 
+        # Validate the configuration - print helpful error messages if invalid.
+        self._validate_config()
 
         # db identifiers
         SQLALCHEMY_DATABASE_URI = ("mysql+pymysql://"+os.getenv('MARIADB_USER')
@@ -56,7 +103,7 @@ class GasExposureAnalytics(object):
             if not isinstance(list_of_csv_files, list) : list_of_csv_files = [list_of_csv_files]
             dataframes = []
             for csv_file in list_of_csv_files : 
-                df = pd.read_csv(csv_file, engine='python', parse_dates=[TIMESTAMP_COL], index_col = TIMESTAMP_COL) # todo: how do paths work for testing?
+                df = pd.read_csv(csv_file, engine='python', parse_dates=[TIMESTAMP_COL], index_col = TIMESTAMP_COL)
                 assert FIREFIGHTER_ID_COL in df.columns, "CSV files is missing key columns %s" % (required_cols)
                 dataframes.append(df)
             self._sensor_log_from_csv_df = pd.concat(dataframes)
@@ -70,7 +117,7 @@ class GasExposureAnalytics(object):
         
         # very important: everything in the system needs to synchronise to minute-boundaries
         window_end = window_end.floor(freq='min')
-        longest_window = max([window['mins'] for window in self._windows_and_limits])
+        longest_window = max([window['mins'] for window in self.WINDOWS_AND_LIMITS])
         window_start = window_end - pd.Timedelta(minutes = longest_window) # e.g. 8hrs ago
 
         sensor_log_df = pd.DataFrame()
@@ -101,7 +148,7 @@ class GasExposureAnalytics(object):
     def _calculate_TWA_and_gauge_for_all_firefighters(self, sensor_log_chunk_df, current_timestamp) :
 
         # We'll be processing the windows in descending order of length (mins) 
-        windows_in_descending_order = sorted([window for window in self._windows_and_limits], key=lambda window: window['mins'], reverse=True)
+        windows_in_descending_order = sorted([window for window in self.WINDOWS_AND_LIMITS], key=lambda window: window['mins'], reverse=True)
         longest_window_mins = windows_in_descending_order[0]['mins'] # topmost element in the windows
         longest_window_timedelta = pd.Timedelta(minutes = longest_window_mins)
         slice_correction = pd.Timedelta(minutes = 1) # subtract 1 min because pandas index slicing is __inclusive__ and we don't want 11 samples in a 10 min average
@@ -162,7 +209,7 @@ class GasExposureAnalytics(object):
             window_duration_label = window['label']
             
             # get a slice for this specific window, for all supported gas sensor readings (and excluding anll other columns)
-            analytic_cols = self._supported_gases + [FIREFIGHTER_ID_COL]
+            analytic_cols = self.SUPPORTED_GASES + [FIREFIGHTER_ID_COL]
             window_df = (longest_window_cleaned_df
                         .loc[(current_timestamp - window_timedelta + slice_correction).isoformat():current_timestamp.isoformat(), analytic_cols])
             
@@ -170,11 +217,11 @@ class GasExposureAnalytics(object):
             if (window_df.empty) :
                 # # Update column titles - add the time period over which we're averaging, so we can merge dataframes later without column name conflicts
                 # empty_df = window_df.reset_index().set_index([FIREFIGHTER_ID_COL, TIMESTAMP_COL])
-                # empty_twa_df = empty_df.add_suffix('_twa_' + window_duration_label)
-                # empty_gauge_df = empty_df.add_suffix('_gauge_' + window_duration_label)
+                # empty_twa_df = empty_df.add_suffix('_' + TWA_SUFFIX + '_' + window_duration_label)
+                # empty_gauge_df = empty_df.add_suffix('_' + GAUGE_SUFFIX + '_' + window_duration_label)
                 # # Now save the results from this time window as a single merged dataframe (TWAs and Limit Gauges)
                 # calculations_for_all_windows.append(pd.concat([empty_twa_df, empty_gauge_df], axis='columns'))
-                continue # TODO: can we get away with just leaving the empty window out? Depends on how the DB write will work
+                continue # TODO: think we probably don't need this - if we're only writing back to the DB, the null cols will be fine.
 
             # Sanity check that there's never more data in the window than there should be (1 record per minute per FF, max)
             assert(window_df.groupby(FIREFIGHTER_ID_COL).size().max() <= window_mins)
@@ -197,12 +244,12 @@ class GasExposureAnalytics(object):
             
             # Calculate gas limit gauge - percentage over / under the calculated TWA values
             # (must compare gases in the same order as the dataframe columns)
-            limits_in_column_order = [float(window['gas_limits'][gas]) for gas in window_twa_df.columns if gas in self._supported_gases]
+            limits_in_column_order = [float(window[GAS_LIMITS_PROPERTY][gas]) for gas in window_twa_df.columns if gas in self.SUPPORTED_GASES]
             window_gauge_df = (window_twa_df * 100 / limits_in_column_order).round(0).astype(int) # whole integer percentage, don't need floats
 
             # Update column titles - add the time period over which we're averaging, so we can merge dataframes later without column name conflicts
-            window_twa_df = window_twa_df.add_suffix('_twa_' + window_duration_label)
-            window_gauge_df = window_gauge_df.add_suffix('_gauge_' + window_duration_label)
+            window_twa_df = window_twa_df.add_suffix('_' + TWA_SUFFIX + '_' + window_duration_label)
+            window_gauge_df = window_gauge_df.add_suffix('_' + GAUGE_SUFFIX + '_' + window_duration_label)
 
             # Now save the results from this time window as a single merged dataframe (TWAs and Limit Gauges)
             calculations_for_all_windows.append(pd.concat([window_twa_df, window_gauge_df], axis='columns'))
@@ -215,6 +262,14 @@ class GasExposureAnalytics(object):
             # Do this for all sensor columns, except the two keys
             for col in list(set(sensor_log_chunk_df.columns) - set([FIREFIGHTER_ID_COL, TIMESTAMP_COL])) :
                 everything_for_1_min_df[col] = None # todo: works, but would prefer a more "pandas-y" way of achieving this with a multi-level index...
+
+        # Now that we have all the informatiom, we can determine the overall Firefighter status.
+        # Green/Red status boundaries are constant, yellow is configurable.
+        yellow_range_start = self.YELLOW_WARNING_PERCENT - 1
+        everything_for_1_min_df[STATUS_LED_COL] = pd.cut(
+            everything_for_1_min_df.filter(like=GAUGE_SUFFIX).max(axis='columns'),
+            bins=[GREEN_RANGE_START, yellow_range_start, RED_RANGE_START, RED_RANGE_END], include_lowest=True,
+            labels=[GREEN,YELLOW,RED])
         
         # makes it slightly easier to read
         everything_for_1_min_df = everything_for_1_min_df[sorted(everything_for_1_min_df.columns.to_list(), key=str.casefold)]

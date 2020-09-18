@@ -40,6 +40,9 @@ class GasExposureAnalytics(object):
     # Validate the configuration - log helpful error messages if invalid.
     def _validate_config(self) :
 
+        valid_config = True # "Trust, but verify" ;-)
+        critical_config_issues = []
+
         # Check that all configured windows cover the same set of gases (i.e. that the first window covers the same set of gases as all other windows)
         # Note: Set operations are valid for .keys() views [https://docs.python.org/3.8/library/stdtypes.html#dictionary-view-objects]
         mismatched_configs_idx = [idx for idx, window in enumerate(self.WINDOWS_AND_LIMITS) if (window[GAS_LIMITS_PROPERTY].keys() != self.WINDOWS_AND_LIMITS[0][GAS_LIMITS_PROPERTY].keys())]
@@ -47,17 +50,29 @@ class GasExposureAnalytics(object):
         if mismatched_configs_idx :
             mismatched_configs = [self.WINDOWS_AND_LIMITS[0]]
             mismatched_configs += [self.WINDOWS_AND_LIMITS[idx] for idx in mismatched_configs_idx]
-        assert not mismatched_configs_idx, \
-            "%s : The '%s' for every time-window must cover the same set of gases - but these have mis-matches %s" % (CONFIG_FILENAME, GAS_LIMITS_PROPERTY, mismatched_configs)
+            valid_config = False
+            message = "%s : The '%s' for every time-window must cover the same set of gases - but these have mis-matches %s" \
+                % (CONFIG_FILENAME, GAS_LIMITS_PROPERTY, mismatched_configs)
+            self.logger.critical(message)
+            critical_config_issues += [message]
 
         # Check that the supported gases are covered by the configuration        
-        assert set(self.SUPPORTED_GASES).issubset(self.WINDOWS_AND_LIMITS[0][GAS_LIMITS_PROPERTY].keys()), \
-            "%s : One or more of the '%s' %s has no limits defined in '%s' %s." \
-            % (CONFIG_FILENAME, SUPPORTED_GASES_PROPERTY, str(self.SUPPORTED_GASES), WINDOWS_AND_LIMITS_PROPERTY, str(list(self.WINDOWS_AND_LIMITS[0][GAS_LIMITS_PROPERTY].keys())))
+        if not set(self.SUPPORTED_GASES).issubset(self.WINDOWS_AND_LIMITS[0][GAS_LIMITS_PROPERTY].keys()) :
+            valid_config = False
+            message = "%s : One or more of the '%s' %s has no limits defined in '%s' %s." \
+                % (CONFIG_FILENAME, SUPPORTED_GASES_PROPERTY, str(self.SUPPORTED_GASES), WINDOWS_AND_LIMITS_PROPERTY, str(list(self.WINDOWS_AND_LIMITS[0][GAS_LIMITS_PROPERTY].keys())))
+            self.logger.critical(message)
+            critical_config_issues += [message]
 
         # Check there's a valid definition of yellow - should be a percentage between 1 and 99
-        assert ( (self.YELLOW_WARNING_PERCENT > 0) and (self.YELLOW_WARNING_PERCENT < 100) ), \
-            "%s : '%s' should be greater than 0 and less than 100 (percent), but is %s" % (CONFIG_FILENAME, YELLOW_WARNING_PERCENT_PROPERTY, self.YELLOW_WARNING_PERCENT)
+        if not ( (self.YELLOW_WARNING_PERCENT > 0) and (self.YELLOW_WARNING_PERCENT < 100) ) :
+            valid_config = False
+            message = "%s : '%s' should be greater than 0 and less than 100 (percent), but is %s" \
+                % (CONFIG_FILENAME, YELLOW_WARNING_PERCENT_PROPERTY, self.YELLOW_WARNING_PERCENT)
+            self.logger.critical(message)
+            critical_config_issues += [message]
+
+        assert valid_config, ''.join([('\nCONFIG ISSUE (%s) : %s' % (idx+1, issue)) for idx, issue in enumerate(critical_config_issues)])
 
         return
 
@@ -286,6 +301,9 @@ class GasExposureAnalytics(object):
     #          the database. Setting commit=False prevents unit tests from writing to the database.
     def run_analytics (self, time=pd.Timestamp.now(), commit=True) :
 
+        message = ("Running Prometeo Analytics. Looking for any sensor data arriving since %s" % (time.isoformat()))
+        if not self._from_db : message += " (local CSV file mode)"
+        self.logger.info(message)
         # Read the max window block from the database - todo: ensure this a non-blocking read (not read-for-update)
         # We can make this more performant, but at the start "make it correct, then write the tests, THEN optimise (with a safety net)" 
         # Also - this is robust to dropouts - querying 'everything known' from the sensor log ensures that

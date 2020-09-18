@@ -3,6 +3,7 @@ import unittest
 
 import pandas as pd
 import numpy as np
+import logging
 
 import src
 from src import GasExposureAnalytics
@@ -20,6 +21,7 @@ TWA_COL_SUFFIXES = ['_twa_10min', '_twa_30min', '_twa_60min', '_twa_4hr', '_twa_
 
 # ---------------------------------------
 
+logging.basicConfig(level=logging.WARNING) # set to logging.INFO if you want to see all the routine INFO messages
 
 # Unit tests for the GasExposureAnalytics class.
 class GasExposureAnalyticsTestCase(unittest.TestCase):

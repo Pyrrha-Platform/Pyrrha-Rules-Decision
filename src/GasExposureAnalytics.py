@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 import sqlalchemy
+import logging
 
 
 # Constants / definitions
@@ -36,7 +37,7 @@ GAS_LIMITS_PROPERTY = 'gas_limits'
 class GasExposureAnalytics(object):
 
 
-    # Validate the configuration - print helpful error messages if invalid.
+    # Validate the configuration - log helpful error messages if invalid.
     def _validate_config(self) :
 
         # Check that all configured windows cover the same set of gases (i.e. that the first window covers the same set of gases as all other windows)
@@ -63,8 +64,10 @@ class GasExposureAnalytics(object):
 
     def __init__(self, list_of_csv_files=None):
 
+        self.logger = logging.getLogger('GasExposureAnalytics')
+
         # Get configuration
-        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src/' + CONFIG_FILENAME)) as file:
+        with open(os.path.join(os.path.dirname(__file__), CONFIG_FILENAME)) as file:
             configuration = json.load(file)
             file.close()
 
@@ -78,11 +81,11 @@ class GasExposureAnalytics(object):
         # #                          reaches that percentage (e.g. 80%) of the exposure limit for any time-window.
         self.YELLOW_WARNING_PERCENT = configuration[YELLOW_WARNING_PERCENT_PROPERTY]
 
-        # Validate the configuration - print helpful error messages if invalid.
+        # Validate the configuration - log helpful error messages if invalid.
         self._validate_config()
 
         # db identifiers
-        SQLALCHEMY_DATABASE_URI = ("mysql+pymysql://"+os.getenv('MARIADB_USER')
+        SQLALCHEMY_DATABASE_URI = ("mysql+pymysql://"+os.getenv('MARIADB_USERNAME')
                                     +":"+os.getenv("MARIADB_PASSWORD")
                                     +"@"+os.getenv("MARIADB_HOST")
                                     +":"+str(os.getenv("MARIADB_PORT"))
@@ -98,7 +101,7 @@ class GasExposureAnalytics(object):
         if list_of_csv_files is not None : 
             self._from_db = False
 
-            print("Taking sensor readings *** from CSV ***") # todo: logfile?
+            self.logger.info("Taking sensor readings *** from CSV ***")
             # Allow clients to pass either single (non-list) CSV file path, or a list of CSV file paths
             if not isinstance(list_of_csv_files, list) : list_of_csv_files = [list_of_csv_files]
             dataframes = []
@@ -137,7 +140,7 @@ class GasExposureAnalytics(object):
             # Get from local CSV files - useful when testing (e.g. using CSV data from the February test)
             sensor_log_df = self._sensor_log_from_csv_df.loc[window_start:window_end,:].sort_index().copy()
 
-        if (sensor_log_df.empty) : print("No 'live' sensor records found in range ["+str(window_start)+" to "+str(window_end)+"]") # todo: logfile?
+        if (sensor_log_df.empty) : self.logger.info("No 'live' sensor records found in range [%s to %s]" % (str(window_start), str(window_end)))
 
         return sensor_log_df
 
@@ -199,7 +202,7 @@ class GasExposureAnalytics(object):
             # Store for merging later on
             latest_sensor_readings = [latest_sensor_readings_df] 
         else : 
-            print (common_key.isoformat() + " No 'live' sensor records found. Calculating Time-Weighted Averages...") # todo: logfile?
+            self.logger.info(" No 'live' sensor records found at timestamp %s. Calculating Time-Weighted Averages anyway..." % (common_key.isoformat()))
         
         # Now iterate over the time windows, calculate their time-weighted averages & limit gauge %, and merge them to a common dataframe
         calculations_for_all_windows = [] # list of results from each window, for merging at the end

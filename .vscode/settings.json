@@ -21,5 +21,6 @@
         "sideBar.border": "#e2ab4a",
         "tab.activeBorder": "#e2ab4a"
     },
-    "peacock.color": "#d79522"
+    "peacock.color": "#d79522",
+    "python.pythonPath": "/Users/upkar/Documents/upkar-code/prometeo-code-response/Prometeo-Rules-Decision/python3/bin/python3"
 }

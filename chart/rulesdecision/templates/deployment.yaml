@@ -53,7 +53,7 @@ spec:
       serviceAccountName: {{  .Chart.Name }}
       containers:
       - name: {{  .Chart.Name }}
-        image: {{ .Values.rulesdecision.image.repository }}:{{ .Values.rulesdecision.image.tag }}
+        image: {{ .Values.rulesdecision.image.repository }}
         imagePullPolicy: {{ .Values.rulesdecision.image.pullPolicy }}
         ports:
         - containerPort: {{ .Values.rulesdecision.service.servicePort}}

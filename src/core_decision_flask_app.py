@@ -4,11 +4,23 @@ from flask_restplus import Api, Resource, fields, reqparse
 from flask_cors import CORS, cross_origin
 import pandas as pd
 from GasExposureAnalytics import GasExposureAnalytics
+from dotenv import load_dotenv
+import time
+import atexit
+from apscheduler.schedulers.background import BackgroundScheduler
+import logging
 
+logger = logging.getLogger('core_decision_flask_app')
+logger.debug('creating an instance of devices')
+
+# load environment variables
+load_dotenv()
 
 # The application
 app = Flask(__name__)
 CORS(app)
+
+print('starting application')
 
 api_prometeo_analytics = Api(app, version='1.0', title="Calculates Time-Weighted Average exposures and exposure-limit status 'gauges' for all firefighters for the last minute.", validate=False)
 ns = api_prometeo_analytics.namespace('GasExposureAnalytics', 'Calculates core Prometeo analytics')
@@ -22,6 +34,20 @@ port = int(os.getenv('PORT', 8080))
 
 # We initialize the prometeo Analytics engine.
 perMinuteAnalytics = GasExposureAnalytics()
+
+def callGasExposureAnalytics():
+    print(time.strftime("%A, %d. %B %Y %I:%M:%S %p"))
+    app.logger.info('info - running analytics')
+    app.logger.debug('debug - running analytics')
+    # call the method on the class
+    perMinuteAnalytics.run_analytics()
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=callGasExposureAnalytics, trigger="interval", seconds=3)
+scheduler.start()
+
+# Shut down the scheduler when exiting the app
+atexit.register(lambda: scheduler.shutdown())
 
 
 # The ENDPOINT

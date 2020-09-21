@@ -5,9 +5,8 @@ rulesdecision:
   version: v1
   replicaCount: 1
   image:
-    repository: us.icr.io/prometeo/rulesdecision
-    tag: v3
-    pullPolicy: IfNotPresent
+    repository: uk.icr.io/prometeo-cluster/rulesdecision
+    pullPolicy: Always
   livenessProbe:
     initialDelaySeconds: 30
     periodSeconds: 10
@@ -17,7 +16,7 @@ istio:
   virtualservices:
     enabled: true
   gateway:
-    enabled: true
+    enabled: false
 imagepullsecrets:
   name: default-uk-icr-io
 

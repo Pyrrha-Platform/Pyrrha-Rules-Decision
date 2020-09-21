@@ -70,7 +70,7 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
             # If the results contain TWAs for other firefighters, but not the expected firefighter.
             self.assertTrue(False, "No analytics results available for ('"+firefighter+"', '"+timestamp_str+"')")
 
-        rounded_actual_values = list(np.round(actual_value,3))
+        rounded_actual_values = list(np.round(actual_value,self._analytics_test.SAFE_ROUNDING_FACTOR))
         # rounded_actual_values = actual_value
 
         # Check that the calculated results for all TWA windows match the given 'expected' values.

@@ -1,0 +1,39 @@
+apiVersion: skaffold/v2beta6
+kind: Config
+
+profiles:
+  - name: test
+    activation:
+      - command: test
+    build:
+      artifacts:
+      - image: uk.icr.io/prometeo-cluster/rulesdecision
+    deploy:
+      helm:
+        releases:
+        - name: rulesdecision
+          chartPath: chart/rulesdecision
+          artifactOverrides:
+            rulesdecision:
+              image:
+                repository: uk.icr.io/prometeo-cluster/rulesdecision
+          overrides:
+            rulesdecision:
+              namespace: test
+  - name: default
+    activation:
+      - command: default
+    build:
+      artifacts:
+      - image: uk.icr.io/prometeo-cluster/rulesdecision
+    deploy:
+      helm:
+        releases:
+        - name: rulesdecision
+          chartPath: chart/rulesdecision
+          artifactOverrides:
+            rulesdecision:
+              image:
+                repository: uk.icr.io/prometeo-cluster/rulesdecision
+        
+              

@@ -8,5 +8,6 @@
         { "label": "8hr",   "mins": 480, "gas_limits": { "carbon_monoxide": 27,  "nitrogen_dioxide": 6.7, "formaldehyde": 14, "acrolein": 0.1  }}
     ],
 "supported_gases" :["carbon_monoxide", "nitrogen_dioxide"],
- "yellow_warning_percent" : 80
+"yellow_warning_percent" : 80,
+"safe_rounding_factor" : 3
 }

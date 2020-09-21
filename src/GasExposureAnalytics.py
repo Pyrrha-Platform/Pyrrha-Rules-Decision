@@ -32,6 +32,7 @@ CONFIG_FILENAME = 'prometeo_config.json'
 WINDOWS_AND_LIMITS_PROPERTY = 'windows_and_limits'
 SUPPORTED_GASES_PROPERTY = 'supported_gases'
 YELLOW_WARNING_PERCENT_PROPERTY = 'yellow_warning_percent'
+SAFE_ROUNDING_FACTOR_PROPERTY = 'safe_rounding_factor'
 GAS_LIMITS_PROPERTY = 'gas_limits'
 
 class GasExposureAnalytics(object):
@@ -72,6 +73,14 @@ class GasExposureAnalytics(object):
             self.logger.critical(message)
             critical_config_issues += [message]
 
+        # Check there's a valid factor defined for safe rounding - should be a positive integer.
+        if  ( (not isinstance(self.SAFE_ROUNDING_FACTOR, int)) or (not (self.SAFE_ROUNDING_FACTOR >= 0) ) ) :
+            valid_config = False
+            message = "%s : '%s' should be a positive integer, but is %s" \
+                % (CONFIG_FILENAME, SAFE_ROUNDING_FACTOR_PROPERTY, self.SAFE_ROUNDING_FACTOR)
+            self.logger.critical(message)
+            critical_config_issues += [message]
+
         assert valid_config, ''.join([('\nCONFIG ISSUE (%s) : %s' % (idx+1, issue)) for idx, issue in enumerate(critical_config_issues)])
 
         return
@@ -87,14 +96,20 @@ class GasExposureAnalytics(object):
             file.close()
 
         # WINDOWS_AND_LIMITS   : A list detailing every supported time-window over which to calcuate the time-weighted
-        #                        average (label, number of minutes and gas limit gauges for each window) - e.g. from AEGL-2.
+        #   average (label, number of minutes and gas limit gauges for each window) - e.g. from AEGL-2.
         self.WINDOWS_AND_LIMITS = configuration[WINDOWS_AND_LIMITS_PROPERTY]
-        # # SUPPORTED_GASES   : The list of gases that Prometeo devices currently have sensors for.
-        # #                     To automatically enable analytics for new gases, simply add them to this list.
+        # SUPPORTED_GASES   : The list of gases that Prometeo devices currently have sensors for.
+        #   To automatically enable analytics for new gases, simply add them to this list.
         self.SUPPORTED_GASES = configuration[SUPPORTED_GASES_PROPERTY]
-        # # YELLOW_WARNING_PERCENT : yellow is a configurable percentage - the status LED will go yellow when any gas 
-        # #                          reaches that percentage (e.g. 80%) of the exposure limit for any time-window.
+        # YELLOW_WARNING_PERCENT : yellow is a configurable percentage - the status LED will go yellow when any gas 
+        #   reaches that percentage (e.g. 80%) of the exposure limit for any time-window.
         self.YELLOW_WARNING_PERCENT = configuration[YELLOW_WARNING_PERCENT_PROPERTY]
+        # SAFE_ROUNDING_FACTOR : Why round? Because rounding protects unit tests from brittleness due to trivial 
+        #   differences in computations. If a value changes by more than 1/10th of the smallest unit of the
+        #   most-sensitive gas, then we want to know (e.g. fail a test), any less than that and the change is negligible.
+        #   e.g.: At time of writing, Nitrogen Dioxide had the smallest range at 0.10 to 0.44, so the safe rounding
+        #   factor for exposure calculations was 3 decimal places.
+        self.SAFE_ROUNDING_FACTOR = configuration[SAFE_ROUNDING_FACTOR_PROPERTY]
 
         # Validate the configuration - log helpful error messages if invalid.
         self._validate_config()
@@ -253,7 +268,7 @@ class GasExposureAnalytics(object):
             window_sample_count = window_timedelta / resample_timedelta
             # Use .sum() and divide by a fixed-time denominator for each window.
             # Don't use .mean() - it has a variable denominator (however many datapoints it happens to have), which over-estimates exposure during startup.
-            window_twa_df = (window_df.groupby(FIREFIGHTER_ID_COL).sum() / float(window_sample_count))
+            window_twa_df = np.round((window_df.groupby(FIREFIGHTER_ID_COL).sum() / float(window_sample_count)), self.SAFE_ROUNDING_FACTOR)
             # Give the window its index key. Note: since records are quantized to floor(minute), they need a 1 minute arrival buffer, hence the correction
             window_twa_df[TIMESTAMP_COL] = common_key
 

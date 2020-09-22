@@ -35,6 +35,14 @@ YELLOW_WARNING_PERCENT_PROPERTY = 'yellow_warning_percent'
 SAFE_ROUNDING_FACTOR_PROPERTY = 'safe_rounding_factor'
 GAS_LIMITS_PROPERTY = 'gas_limits'
 
+# Sensor range limitations. These are intentionally hard-coded and not configured. They're used to cross-check
+# that the PPM limits configured for each time-window respects the sensitivity range of the sensors.
+SENSOR_RANGE_PPM  = {
+    'carbon_monoxide'  : {'min' : 1   , 'max' : 1000}, # CJMCU-4541 / MICS-4514 Sensor
+    'nitrogen_dioxide' : {'min' : 0.05, 'max' : 10  }  # CJMCU-4541 / MICS-4514 Sensor
+}
+
+
 class GasExposureAnalytics(object):
 
 
@@ -64,6 +72,16 @@ class GasExposureAnalytics(object):
                 % (CONFIG_FILENAME, SUPPORTED_GASES_PROPERTY, str(self.SUPPORTED_GASES), WINDOWS_AND_LIMITS_PROPERTY, str(list(self.WINDOWS_AND_LIMITS[0][GAS_LIMITS_PROPERTY].keys())))
             self.logger.critical(message)
             critical_config_issues += [message]
+
+        # For each supported gas, check that limits PPM configuration is within the sensitivity / range of the sensor.
+        for gas in self.SUPPORTED_GASES :
+            limits = [window[GAS_LIMITS_PROPERTY][gas] for window in self.WINDOWS_AND_LIMITS]
+            if ( (min(limits) < SENSOR_RANGE_PPM[gas]['min']) or (max(limits) > SENSOR_RANGE_PPM[gas]['max']) ) : 
+                valid_config = False
+                message = "%s : One or more of the '%s' configurations %s exceeds the sensitivity range of the '%s' sensor (min: %s, max: %s)." \
+                    % (CONFIG_FILENAME, GAS_LIMITS_PROPERTY, limits, gas, SENSOR_RANGE_PPM[gas]['min'], SENSOR_RANGE_PPM[gas]['max'])
+                self.logger.critical(message)
+                critical_config_issues += [message]
 
         # Check there's a valid definition of yellow - should be a percentage between 1 and 99
         if not ( (self.YELLOW_WARNING_PERCENT > 0) and (self.YELLOW_WARNING_PERCENT < 100) ) :

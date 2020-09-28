@@ -32,6 +32,7 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     _analytics_test = GasExposureAnalytics(TEST_DATA_CSV_FILEPATH)
 
     def setUp(self):
+        self._analytics_test.AUTOFILL_MINS = 10 # todo: documentation
         pass
 
     def tearDown(self):
@@ -116,13 +117,13 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def test_first_sensor_record_of_the_day(self):
         # The very first record of the day - 1 reading for 1 firefighter!
         self._check_twas_for_one_firefighter_one_gas('0007', '2000-01-01 09:32:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[0.2, 0.067, 0.033, 0.008, 0.004])
+                                                     expected_values=[0.1, 0.033, 0.017, 0.004, 0.002])
 
 
     def test_missing_some_sensor_readings_in_10min_window(self):
         # 10 min window for firefighter 0003 is only half full.
         self._check_twas_for_one_firefighter_one_gas('0003', '2000-01-01 15:03:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[1.8, 4.833, 5.967, 9.35, 5.977])
+                                                     expected_values=[6.0, 6.304, 6.755, 9.631, 6.09])
         # TODO: when we add dropout processing, this might need to change (e.g. server might 'decline' to
         # calculate some of the other TWAs (e.g. 30m) if there aren't enough records)
 
@@ -130,7 +131,7 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def test_no_sensor_readings_in_10min_window(self):
         # 10 min window for firefighter 0003 is now empty.
         self._check_twas_for_one_firefighter_one_gas('0003', '2000-01-01 15:08:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[np.nan, 3.7, 5.3, 9.233, 5.977])
+                                                     expected_values=[np.nan, 5.756, 6.404, 9.638, 6.146])
         # TODO: when we add dropout processing, this might need to change (e.g. server might 'decline' to
         # calculate some of the other TWAs (e.g. 30m) if there aren't enough records)
 
@@ -138,7 +139,7 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def test_no_sensor_readings_in_30min_window(self):
         # 30 min window for firefighter 0003 is now empty.
         self._check_twas_for_one_firefighter_one_gas('0003', '2000-01-01 15:28:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[np.nan, np.nan, 2.95, 7.908, 5.977])
+                                                     expected_values=[np.nan, np.nan, 4.003, 8.289, 6.146])
         # TODO: when we add dropout processing, this might need to change (e.g. server might 'decline' to
         # calculate some of the other TWAs (e.g. 60m) if there aren't enough records)
 
@@ -147,38 +148,38 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
         # ...just checking for another FF (so it's not just '0003')
         # As we head out past 30 mins after the last sensor reading, the 10m and 30m TWAs drop off
         self._check_twas_for_one_firefighter_one_gas('0010', '2000-01-01 14:00:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[np.nan, np.nan, 3.117, 7.296, 3.648])
+                                                     expected_values=[np.nan, np.nan, 4.23, 7.745, 3.873])
 
 
     def test_no_sensor_readings_in_60min_window(self):
         # 60 min window for firefighter 0003 is now empty.
         self._check_twas_for_one_firefighter_one_gas('0003', '2000-01-01 15:58:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[np.nan, np.nan, np.nan, 6.004, 5.977])
+                                                     expected_values=[np.nan, np.nan, np.nan, 6.342, 6.146])
 
 
     def test_no_sensor_readings_in_4hr_window(self):
         # 4 hr window for firefighter 0003 is now empty.
         self._check_twas_for_one_firefighter_one_gas('0003', '2000-01-01 18:58:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[np.nan, np.nan, np.nan, np.nan, 4.738])
+                                                     expected_values=[np.nan, np.nan, np.nan, np.nan, 4.937])
 
 
     def test_second_last_sensor_record_of_the_day(self):
         # The second-last TWA calculation of the day for '0008'
         self._check_twas_for_one_firefighter_one_gas('0008', '2000-01-01 22:48:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[np.nan, np.nan, np.nan, np.nan, 0.023])
+                                                     expected_values=[np.nan, np.nan, np.nan, np.nan, 0.138])
 
 
     def test_last_sensor_record_of_the_day(self):
         # The last TWA calculation of the day for '0008'
         self._check_twas_for_one_firefighter_one_gas('0008', '2000-01-01 22:49:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[np.nan, np.nan, np.nan, np.nan, 0.012])
+                                                     expected_values=[np.nan, np.nan, np.nan, np.nan, 0.137])
 
 
     def test_correct_twas_still_provided_when_live_sensor_is_offline(self):
         # This test covers a period when there are sensor dropouts, but the TWAs are OK - to ensure
         # the analytics work correctly regardless of dropouts
         self._check_twas_for_one_firefighter_one_gas('0006', '2000-01-01 12:05:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[34.6, 82.0, 64.783, 21.15, 10.575]) # (CO dropout)
+                                                     expected_values=[68.0, 120.333, 74.667, 21.876, 10.938]) # (CO dropout)
 
 
     def test_correct_twas_still_provided_when_live_sensor_is_offline_alt(self):
@@ -186,7 +187,7 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
         # the analytics work correctly regardless of dropouts
         # ...just checking for another FF (so it's not just '0006')
         self._check_twas_for_one_firefighter_one_gas('0010', '2000-01-01 12:05:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[10.3, 10.8, 13.633, 4.517, 2.258]) # (CO dropout)
+                                                     expected_values=[12.875, 11.571, 14.103, 4.555, 2.278]) # (CO dropout)
 
 
     def test_after_the_last_twa_of_the_day(self):
@@ -204,25 +205,25 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
 
     def test_sample_point_0010(self):
         self._check_twas_for_one_firefighter_one_gas('0001', '2000-01-01 11:24:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[8.6, 3.033, 2.067, 0.675, 0.338])
+                                                     expected_values=[8.6, 3.033, 2.067, 0.668, 0.334])
 
     def test_sample_point_0020(self):
         self._check_twas_for_one_firefighter_one_gas('0010', '2000-01-01 11:30:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[20.5, 13.8, 8.933, 2.738, 1.369])
+                                                     expected_values=[20.5, 13.8, 8.933, 2.705, 1.352])
 
     def test_sample_point_0030(self):
         self._check_twas_for_one_firefighter_one_gas('0003', '2000-01-01 11:15:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[6.1, 6.0, 6.2, 2.9, 1.45])
+                                                     expected_values=[6.1, 6.0, 6.2, 2.87, 1.435])
 
 
     def test_sample_point_0040(self):
         self._check_twas_for_one_firefighter_one_gas('0003', '2000-01-01 11:35:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[29.3, 16.033, 11.2, 4.65, 2.325])
+                                                     expected_values=[29.3, 16.033, 11.2, 4.61, 2.305])
 
 
     def test_sample_point_0050(self):
         self._check_twas_for_one_firefighter_one_gas('0006', '2000-01-01 10:35:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[44.9, 25.033, 13.1, 3.275, 1.638])
+                                                     expected_values=[44.9, 25.033, 12.69, 3.173, 1.586])
 
 
     def test_sample_point_0060(self):
@@ -232,17 +233,17 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
 
     def test_sample_point_0070(self):
         self._check_twas_for_one_firefighter_one_gas('0007', '2000-01-01 13:00:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[11.8, 13.433, 11.133, 2.825, 1.412])
+                                                     expected_values=[11.8, 13.433, 11.322, 2.825, 1.412])
 
 
     def test_sample_point_0080(self):
         self._check_twas_for_one_firefighter_one_gas('0008', '2000-01-01 12:40:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[29.9, 18.767, 16.167, 7.062, 3.531])
+                                                     expected_values=[29.9, 18.767, 16.167, 7.858, 3.929])
 
 
     def test_sample_point_0090(self):
         self._check_twas_for_one_firefighter_one_gas('0008', '2000-01-01 13:30:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[19.9, 13.167, 14.65, 9.479, 4.74])
+                                                     expected_values=[19.9, 13.167, 14.65, 10.247, 5.123])
 
 
     # #################################################################################

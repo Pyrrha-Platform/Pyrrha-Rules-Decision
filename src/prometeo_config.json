@@ -9,5 +9,6 @@
     ],
 "supported_gases" :["carbon_monoxide", "nitrogen_dioxide"],
 "yellow_warning_percent" : 80,
-"safe_rounding_factor" : 3
+"safe_rounding_factor" : 3,
+"autofill_missing_sensor_logs_up_to_N_mins" : 10
 }

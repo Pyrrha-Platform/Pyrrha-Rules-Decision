@@ -1,0 +1,54 @@
+{
+    "windows_and_limits":
+        [
+            { "label": "15min STEL", "mins": 15,  "gas_limits": { "carbon_monoxide": 200, "nitrogen_dioxide": 1,  "formaldehyde": 0.1, "acrolein": 0.3 }},
+            { "label": "8hr TWA",   "mins": 480, "gas_limits": { "carbon_monoxide": 35,  "nitrogen_dioxide": 0.2, "formaldehyde": 0.016, "acrolein": 0.1  }}
+        ],
+    "supported_gases" :["carbon_monoxide", "nitrogen_dioxide"],
+    "yellow_warning_percent" : 80,
+    "safe_rounding_factor" : 3,
+    "autofill_missing_sensor_logs_up_to_N_mins" : 10
+}
+    
+OSHA sets law, but the laws are slow to change, so the research division NIOSH makes more up-to-date recommendations. ACGIH makes statements about safety without reference to how practical the statement is to implement.
+
+Carbon Monoxide :
+    ACGIH TLV               : 25 ppm 8hr TWA                          https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    NIOSH REL (up to 10hrs) : 35 ppm 8-10hr TWA, Ceiling 200 ppm      https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    Cal/OSHA PEL            : 25 ppm 8hr TWA, Ceiling 200 ppm         https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    OSHA PEL                : 50 ppm 8hr TWA                          https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    AEGL-2                  : TWAs: 27 ppm 8hr / 33 ppm 4hr, 83 ppm 60 min, 150 ppm 30 min, 420 ppm 10 min                   https://www.epa.gov/aegl/carbon-monoxide-results-aegl-program
+    Canada                  : 35 ppm 8hr TWA, 200 ppm STEL            https://echa.europa.eu/registration-dossier/-/registered-dossier/15368/7/1
+    EU (IOELV)              : 20 ppm 8hr TWA, 100 ppm 15min STEL      https://echa.europa.eu/indicative-oelvs-dir-2017-164/-/legislationlist/details/EU-IOELV_LIST_4-ANX_I-100.010.118-VSK-5F41D0
+    Spain                   : 25 ppm 8hr TWA                          https://echa.europa.eu/registration-dossier/-/registered-dossier/15368/7/1
+
+
+Nitrogen Dioxide :
+    ACGIH TLV               : 0.2 ppm 8hr TWA                                https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    NIOSH REL (up to 10hrs) : 1 ppm 15 min STEL                              https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    Cal/OSHA PEL            : 1 ppm STEL                              https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    OSHA PEL                : Ceiling 5 ppm                           https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    AEGL-2                  : TWAs: 6.7 ppm 8hr / 8.2 ppm 4hr, 12 ppm 60 min, 15 ppm 30 min, 20 ppm 10 min                   https://www.epa.gov/aegl/nitrogen-dioxide-aegl-program
+    Canada                  : ?
+    EU (IOELV)              : 0.5 ppm 8hr TWA, 1.0 ppm 15min STEL     https://echa.europa.eu/indicative-oelvs-dir-2017-164/-/legislationlist/details/EU-IOELV_LIST_4-ANX_I-100.030.234-VSK-5F41BE
+    Spain                   : ?
+
+Acrolein :
+    ACGIH TLV               : 0.1 ppm 8hr TWA                                                https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    NIOSH REL (up to 10hrs) : 0.1 ppm 8hr TWA, 0.3 ppm 15 min STEL                                                https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    Cal/OSHA PEL            : Ceiling 0.1 ppm                                                https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    OSHA PEL                : 0.1 ppm 8hr TWA                                                https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    AEGL-2                  : TWAs: 0.10 ppm 8hr / 0.10 ppm 4hr, 0.10 ppm 60 min, 0.18 ppm 30 min, 0.44 ppm 10 min                   https://www.epa.gov/aegl/acrolein-results-aegl-program
+    Canada                  : 
+    EU (IOELV)              : 0.02 ppm 8hr TWA, 0.05 ppm 15min STEL   https://echa.europa.eu/indicative-oelvs-dir-2017-164/-/legislationlist/details/EU-IOELV_LIST_4-ANX_I-100.003.141-VSK-5F41C2
+    Spain                   : 
+
+Formaldehyde :
+    ACGIH TLV               :  0.1 ppm 8hr TWA, 0.3 ppm STEL                                              https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    NIOSH REL (up to 10hrs) :  0.016 ppm 8hr TWA, Ceiling 0.1 ppm 15-min                                              https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    Cal/OSHA PEL            :  0.75 ppm 8hr TWA, 2 ppm STEL                                               https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    OSHA PEL                :  n/a                                               https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    AEGL-2                  : TWAs: 14 ppm 8hr / 14 ppm 4hr, 14 ppm 60 min, 14 ppm 30 min, 14 ppm 10 min                   https://www.epa.gov/aegl/formaldehyde-results-aegl-program
+    Canada                  : 
+    EU (IOELV)              : 0.3 ppm 8hr TWA, 0.6 ppm STEL           https://echa.europa.eu/substance-information/-/substanceinfo/100.000.002
+    Spain                   : 

@@ -14,13 +14,18 @@ from src import GasExposureAnalytics
 TEST_DATA_CSV_FILEPATH = os.path.join(os.path.dirname(__file__), 'GasExposureAnalytics_test_dataset.csv')
 ANALYTIC_CONFIGURATION_FOR_THIS_TEST = os.path.join(os.path.dirname(__file__), 'GasExposureAnalytics_test_config.json')
 
-# FIELD / COLUMN NAMES
+# FIELD / COLUMN / VALUE NAMES
 FIREFIGHTER_ID_COL = 'firefighter_id'
 TIMESTAMP_COL = 'timestamp_mins'
 CARBON_MONOXIDE_COL = 'carbon_monoxide'
 NITROGEN_DIOXIDE_COL = 'nitrogen_dioxide'
+STATUS_LED_COL = 'analytics_status_LED'
 TWA_SUFFIX = '_twa_'
 GAUGE_SUFFIX = '_gauge_'
+GREEN = 1
+YELLOW = 2
+RED = 3
+STATUS_LABEL = {GREEN: 'Green', YELLOW: 'Yellow', RED: 'Red'}
 
 # ---------------------------------------
 
@@ -45,11 +50,12 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     # * Calculates the gas results (TWAs and Gauges) for the firefighter at that time during the burn test dataset.
     # * Checks that the calculated results for all time-windows match the given 'expected' values.
     # * If there are any discrepancies, generates a detailed description for debugging.
-    def _check_results_for_one_firefighter_one_gas(self, firefighter, timestamp_str, gas, result_fields, expected_values):
+    def _check_results_for_one_firefighter_one_gas(self, firefighter, timestamp_str, gas, result_fields,
+                                                   expected_values, expected_status=None):
 
         # All sensor records are keyed on the minute in which they arrive. So if 'now' is 08:10:11 (11s past 8.10am)
-        # then there's another 49s to go before we can expect all the similarly-keyed (08:10:00) sensor records to have arrived.
-        # Hence the actual 'latest' data that we're interested in getting analytics for is "any data keyed 08:09:00"
+        # then there's another 49s to go before we can expect all similarly-keyed (08:10:00) sensor records to have
+        # arrived. Hence the 'latest' data that we're interested in getting analytics for is "any data keyed 08:09:00"
         # i.e. (now.floor() minus 1 minute) - that 1 minute is the arrival buffer for the data.
         now = pd.Timestamp(timestamp_str)
         analytic_timestamp_key = now - pd.Timedelta(minutes=1)
@@ -69,9 +75,9 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
             # 30min, 1hr, etc TWAs being produced.  So the reindex() here just inserts null values for any missing
             # TWAs - which allows subsequent code not to have to worry about the 'shape' of the results.
             test_key = (firefighter, analytic_timestamp_key)
-            actual_values = (result_df.reindex(columns=result_fields)
-                .loc[test_key, result_fields]
-                .tolist())
+            actual_values = (result_df.reindex(columns=result_fields).loc[test_key, result_fields].tolist())
+            actual_status = (result_df.loc[test_key, STATUS_LED_COL]) # also check the final status assessment
+
         except KeyError :
             # If the results contain TWAs for other firefighters, but not the expected firefighter.
             self.assertTrue(False, "No analytics results available for ('"+firefighter+"', '"+timestamp_str+"')")
@@ -87,19 +93,29 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
                              % (result_field, expected_value, actual_value, timestamp_str, firefighter,
                                 expected_values, actual_values)))
 
+        # Check that the overall calculated status matches the 'expected' status.
+        if expected_status is not None :
+            self.assertTrue((expected_status == actual_status),
+                            (("%s expected to be %s (%s) but was %s (%s) \n\t(debug: %s - firefighter '%s')")
+                            % (STATUS_LED_COL, STATUS_LABEL[expected_status], expected_status,
+                            STATUS_LABEL[actual_status], actual_status, timestamp_str, firefighter)))
+
 
     # Core utility method for testing TWAs (see _check_results_for_one_firefighter_one_gas for docs)
     def _check_twas_for_one_firefighter_one_gas(self, firefighter, timestamp_str, gas, expected_values) :
         # Get the field names for the various expected analytic results (dependent on windows & limits configuration)
         result_fields = [gas + TWA_SUFFIX + window['label'] for window in self._analytics_test.WINDOWS_AND_LIMITS]
-        self._check_results_for_one_firefighter_one_gas(firefighter, timestamp_str, gas, result_fields, expected_values)
+        self._check_results_for_one_firefighter_one_gas(
+            firefighter, timestamp_str, gas, result_fields, expected_values)
 
 
     # Core utility method for testing Gauges (see _check_results_for_one_firefighter_one_gas for docs)
-    def _check_gauges_for_one_firefighter_one_gas(self, firefighter, timestamp_str, gas, expected_values) :
+    def _check_gauges_for_one_firefighter_one_gas(self, firefighter, timestamp_str, gas, expected_values,
+                                                  expected_status=None) :
         # Get the field names for the various expected analytic results (dependent on windows & limits configuration)
         result_fields = [gas + GAUGE_SUFFIX + window['label'] for window in self._analytics_test.WINDOWS_AND_LIMITS]
-        self._check_results_for_one_firefighter_one_gas(firefighter, timestamp_str, gas, result_fields, expected_values)
+        self._check_results_for_one_firefighter_one_gas(
+            firefighter, timestamp_str, gas, result_fields, expected_values, expected_status)
 
 
     # Utility method for inspecting specifc firefighter metrics when writing unit tests, or debugging tests that fail.
@@ -239,6 +255,31 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
                                                      expected_values=[3.4, 5.89, 3.61, 1.08, 0.54])
 
 
+    def test_status_is_green_just_before_80pc_of_one_limit(self):
+        # Test a period just before one TWA exceeds 80% of its limit (or whatever % is configured for 'yellow')
+        self._check_gauges_for_one_firefighter_one_gas('0008', '2000-01-01 11:35:00', NITROGEN_DIOXIDE_COL,
+                                                     expected_values=[19.0, 71.0, 57.0, 32.0, 16.0], expected_status=GREEN)
+
+    def test_status_goes_yellow_just_after_80pc_of_one_limit(self):
+        # Test a period just after one TWA exceeds 80% of its limit (or whatever % is configured for 'yellow')
+        self._check_gauges_for_one_firefighter_one_gas('0008', '2000-01-01 11:45:00', NITROGEN_DIOXIDE_COL,
+                                                     expected_values=[14.0, 87.0, 62.0, 38.0, 18.0], expected_status=YELLOW)
+    
+    def test_status_drops_back_to_green_after_yellow(self):
+        # Test a period just after a yellow patch, followed by a green patch
+        self._check_gauges_for_one_firefighter_one_gas('0008', '2000-01-01 12:05:00', NITROGEN_DIOXIDE_COL,
+                                                     expected_values=[20.0, 74.0, 73.0, 52.0, 26.0], expected_status=GREEN)
+    
+    def test_status_is_yellow_just_before_one_limit_exceeded(self):
+        # Test a period just before one TWA reaches its limit
+        self._check_gauges_for_one_firefighter_one_gas('0008', '2000-01-01 13:22:00', NITROGEN_DIOXIDE_COL,
+                                                     expected_values=[12.0, 49.0, 70.0, 94.0, 46.0], expected_status=YELLOW)
+
+    def test_status_is_red_just_after_one_limit_exceeded(self):
+        # Test a period just after one TWA reaches its limit
+        self._check_gauges_for_one_firefighter_one_gas('0008', '2000-01-01 13:30:00', NITROGEN_DIOXIDE_COL,
+                                                     expected_values=[21.0, 67.0, 76.0, 102.0, 50.0], expected_status=RED)
+
     def test_correct_twas_still_provided_when_live_sensor_is_offline_alt_gas1(self):
         # ...same as 'test_correct_twas_still_provided_when_live_sensor_is_offline' with another FF (not just '0006')
         self._check_twas_for_one_firefighter_one_gas('0010', '2000-01-01 12:05:00', CARBON_MONOXIDE_COL,
@@ -287,11 +328,11 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def test_sample_point_0010_Gauges_gas1(self):
         # test Gauge calculations for carbon monoxide
         self._check_gauges_for_one_firefighter_one_gas('0001', '2000-01-01 11:24:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[2.0, 2.0, 2.0, 2.0, 1.0])
+                                                     expected_values=[2.0, 2.0, 2.0, 2.0, 1.0], expected_status=GREEN)
     def test_sample_point_0010_Gauges_gas2(self):
         # test Gauge calculations for nitrogen dioxide
         self._check_gauges_for_one_firefighter_one_gas('0001', '2000-01-01 11:24:00', NITROGEN_DIOXIDE_COL,
-                                                     expected_values=[8.0, 14.0, 10.0, 6.0, 4.0])
+                                                     expected_values=[8.0, 14.0, 10.0, 6.0, 4.0], expected_status=GREEN)
 
     def test_sample_point_0020_TWAs_gas1(self):
         # test TWA calculations for carbon monoxide
@@ -305,11 +346,11 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def test_sample_point_0020_Gauges_gas1(self):
         # test Gauge calculations for carbon monoxide
         self._check_gauges_for_one_firefighter_one_gas('0010', '2000-01-01 11:30:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[5.0, 8.0, 10.0, 7.0, 4.0])
+                                                     expected_values=[5.0, 8.0, 10.0, 7.0, 4.0], expected_status=GREEN)
     def test_sample_point_0020_Gauges_gas2(self):
         # test Gauge calculations for nitrogen dioxide
         self._check_gauges_for_one_firefighter_one_gas('0010', '2000-01-01 11:30:00', NITROGEN_DIOXIDE_COL,
-                                                     expected_values=[22.0, 58.0, 39.0, 24.0, 12.0])
+                                                     expected_values=[22.0, 58.0, 39.0, 24.0, 12.0], expected_status=GREEN)
 
     def test_sample_point_0030_TWAs_gas1(self):
         # test TWA calculations for carbon monoxide
@@ -323,11 +364,11 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def test_sample_point_0030_Gauges_gas1(self):
         # test Gauge calculations for carbon monoxide
         self._check_gauges_for_one_firefighter_one_gas('0003', '2000-01-01 11:15:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[1.0, 4.0, 7.0, 8.0, 5.0])
+                                                     expected_values=[1.0, 4.0, 7.0, 8.0, 5.0], expected_status=GREEN)
     def test_sample_point_0030_Gauges_gas2(self):
         # test Gauge calculations for nitrogen dioxide
         self._check_gauges_for_one_firefighter_one_gas('0003', '2000-01-01 11:15:00', NITROGEN_DIOXIDE_COL,
-                                                     expected_values=[5.0, 30.0, 31.0, 28.0, 14.0])
+                                                     expected_values=[5.0, 30.0, 31.0, 28.0, 14.0], expected_status=GREEN)
 
 
     def test_sample_point_0040_TWAs_gas1(self):
@@ -342,11 +383,11 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def test_sample_point_0040_Gauges_gas1(self):
         # test Gauge calculations for carbon monoxide
         self._check_gauges_for_one_firefighter_one_gas('0003', '2000-01-01 11:35:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[7.0, 10.0, 13.0, 14.0, 8.0])
+                                                     expected_values=[7.0, 10.0, 13.0, 14.0, 8.0], expected_status=GREEN)
     def test_sample_point_0040_Gauges_gas2(self):
         # test Gauge calculations for nitrogen dioxide
         self._check_gauges_for_one_firefighter_one_gas('0003', '2000-01-01 11:35:00', NITROGEN_DIOXIDE_COL,
-                                                     expected_values=[29.0, 77.0, 55.0, 44.0, 22.0])
+                                                     expected_values=[29.0, 77.0, 55.0, 44.0, 22.0], expected_status=GREEN)
 
 
     def test_sample_point_0050_TWAs_gas1(self):
@@ -361,11 +402,11 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def test_sample_point_0050_Gauges_gas1(self):
         # test Gauge calculations for carbon monoxide
         self._check_gauges_for_one_firefighter_one_gas('0006', '2000-01-01 10:35:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[11.0, 16.0, 15.0, 9.0, 6.0])
+                                                     expected_values=[11.0, 16.0, 15.0, 9.0, 6.0]) # note: will be 'RED' due to NO2
     def test_sample_point_0050_Gauges_gas2(self):
         # test Gauge calculations for nitrogen dioxide
         self._check_gauges_for_one_firefighter_one_gas('0006', '2000-01-01 10:35:00', NITROGEN_DIOXIDE_COL,
-                                                     expected_values=[45.0, 122.0, 61.0, 30.0, 16.0])
+                                                     expected_values=[45.0, 122.0, 61.0, 30.0, 16.0], expected_status=RED)
 
 
     def test_sample_point_0060_TWAs_gas1(self):
@@ -380,11 +421,11 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def test_sample_point_0060_Gauges_gas1(self):
         # test Gauge calculations for carbon monoxide
         self._check_gauges_for_one_firefighter_one_gas('0007', '2000-01-01 12:05:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[0, 0, 0, 0, 0])
+                                                     expected_values=[0, 0, 0, 0, 0], expected_status=GREEN)
     def test_sample_point_0060_Gauges_gas2(self):
         # test Gauge calculations for nitrogen dioxide
         self._check_gauges_for_one_firefighter_one_gas('0007', '2000-01-01 12:05:00', NITROGEN_DIOXIDE_COL,
-                                                     expected_values=[0, 2, 1, 0, 0])
+                                                     expected_values=[0, 2, 1, 0, 0], expected_status=GREEN)
 
 
     def test_sample_point_0070_TWAs_gas1(self):
@@ -399,11 +440,11 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def test_sample_point_0070_Gauges_gas1(self):
         # test Gauge calculations for carbon monoxide
         self._check_gauges_for_one_firefighter_one_gas('0007', '2000-01-01 13:00:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[3.0, 9.0, 13.0, 8.0, 5.0])
+                                                     expected_values=[3.0, 9.0, 13.0, 8.0, 5.0], expected_status=GREEN)
     def test_sample_point_0070_Gauges_gas2(self):
         # test Gauge calculations for nitrogen dioxide
         self._check_gauges_for_one_firefighter_one_gas('0007', '2000-01-01 13:00:00', NITROGEN_DIOXIDE_COL,
-                                                     expected_values=[12.0, 68.0, 55.0, 28.0, 14.0])
+                                                     expected_values=[12.0, 68.0, 55.0, 28.0, 14.0], expected_status=GREEN)
 
 
     def test_sample_point_0080_TWAs_gas1(self):
@@ -418,11 +459,11 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def test_sample_point_0080_Gauges_gas1(self):
         # test Gauge calculations for carbon monoxide
         self._check_gauges_for_one_firefighter_one_gas('0008', '2000-01-01 12:40:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[8.0, 13.0, 20.0, 24.0, 14.0])
+                                                     expected_values=[8.0, 13.0, 20.0, 24.0, 14.0]) # note: will be 'YELLOW' due to NO2
     def test_sample_point_0080_Gauges_gas2(self):
         # test Gauge calculations for nitrogen dioxide
         self._check_gauges_for_one_firefighter_one_gas('0008', '2000-01-01 12:40:00', NITROGEN_DIOXIDE_COL,
-                                                     expected_values=[33.0, 95.0, 82.0, 78.0, 38.0])
+                                                     expected_values=[33.0, 95.0, 82.0, 78.0, 38.0], expected_status=YELLOW)
 
 
     def test_sample_point_0090_TWAs_gas1(self):
@@ -437,11 +478,11 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def test_sample_point_0090_Gauges_gas1(self):
         # test Gauge calculations for carbon monoxide
         self._check_gauges_for_one_firefighter_one_gas('0008', '2000-01-01 13:30:00', CARBON_MONOXIDE_COL,
-                                                     expected_values=[5, 9, 18, 31, 19])
+                                                     expected_values=[5, 9, 18, 31, 19]) # note: will be 'RED' due to NO2
     def test_sample_point_0090_Gauges_gas2(self):
         # test Gauge calculations for nitrogen dioxide
         self._check_gauges_for_one_firefighter_one_gas('0008', '2000-01-01 13:30:00', NITROGEN_DIOXIDE_COL,
-                                                     expected_values=[21.0, 67.0, 76.0, 102.0, 50.0])
+                                                     expected_values=[21.0, 67.0, 76.0, 102.0, 50.0], expected_status=RED)
 
 
 

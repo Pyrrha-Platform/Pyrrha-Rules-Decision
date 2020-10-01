@@ -199,7 +199,8 @@ class GasExposureAnalytics(object):
                 df = pd.read_csv(csv_file, engine='python', parse_dates=[TIMESTAMP_COL], index_col = TIMESTAMP_COL)
                 assert FIREFIGHTER_ID_COL in df.columns, "CSV files is missing key columns %s" % (required_cols)
                 dataframes.append(df)
-            self._sensor_log_from_csv_df = pd.concat(dataframes)
+            # Merge the dataframes (also pre-sort, to speed up test runs and enable debug slicing on the index)
+            self._sensor_log_from_csv_df = pd.concat(dataframes).sort_index()
 
 
     # Query the last N hours of sensor logs, where N is the longest configured time-window length. As with all methods

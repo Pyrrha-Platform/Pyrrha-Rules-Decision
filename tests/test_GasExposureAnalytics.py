@@ -20,12 +20,15 @@ TIMESTAMP_COL = 'timestamp_mins'
 CARBON_MONOXIDE_COL = 'carbon_monoxide'
 NITROGEN_DIOXIDE_COL = 'nitrogen_dioxide'
 STATUS_LED_COL = 'analytics_status_LED'
-TWA_SUFFIX = '_twa_'
-GAUGE_SUFFIX = '_gauge_'
+TWA_SUFFIX = '_twa'
+GAUGE_SUFFIX = '_gauge'
+MIN_SUFFIX = '_%smin'
+WINDOW_MINS_PROPERTY = 'mins'
 GREEN = 1
 YELLOW = 2
 RED = 3
 STATUS_LABEL = {GREEN: 'Green', YELLOW: 'Yellow', RED: 'Red'}
+
 
 # ---------------------------------------
 
@@ -104,7 +107,7 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     # Core utility method for testing TWAs (see _check_results_for_one_firefighter_one_gas for docs)
     def _check_twas_for_one_firefighter_one_gas(self, firefighter, timestamp_str, gas, expected_values) :
         # Get the field names for the various expected analytic results (dependent on windows & limits configuration)
-        result_fields = [gas + TWA_SUFFIX + window['label'] for window in self._analytics_test.WINDOWS_AND_LIMITS]
+        result_fields = [(gas + TWA_SUFFIX + MIN_SUFFIX) % (str(window[WINDOW_MINS_PROPERTY])) for window in self._analytics_test.WINDOWS_AND_LIMITS]
         self._check_results_for_one_firefighter_one_gas(
             firefighter, timestamp_str, gas, result_fields, expected_values)
 
@@ -113,7 +116,7 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def _check_gauges_for_one_firefighter_one_gas(self, firefighter, timestamp_str, gas, expected_values,
                                                   expected_status=None) :
         # Get the field names for the various expected analytic results (dependent on windows & limits configuration)
-        result_fields = [gas + GAUGE_SUFFIX + window['label'] for window in self._analytics_test.WINDOWS_AND_LIMITS]
+        result_fields = [(gas + GAUGE_SUFFIX + MIN_SUFFIX) % (str(window[WINDOW_MINS_PROPERTY])) for window in self._analytics_test.WINDOWS_AND_LIMITS]
         self._check_results_for_one_firefighter_one_gas(
             firefighter, timestamp_str, gas, result_fields, expected_values, expected_status)
 

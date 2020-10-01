@@ -16,8 +16,9 @@ FIREFIGHTER_ID_COL_TYPE = sqlalchemy.types.VARCHAR(length=20) # mySQL needs to b
 TIMESTAMP_COL = 'timestamp_mins'
 # Normally the 'analytics' LED color will be the same as the 'device' LED color, but in a disconnected scenario, they may be different. We want to capture both. 
 STATUS_LED_COL = 'analytics_status_LED'
-TWA_SUFFIX = 'twa'
-GAUGE_SUFFIX = 'gauge'
+TWA_SUFFIX = '_twa'
+GAUGE_SUFFIX = '_gauge'
+MIN_SUFFIX = '_%smin'
 GREEN = 1
 YELLOW = 2
 RED = 3
@@ -38,6 +39,7 @@ RED_RANGE_END = np.Inf
 # Configuration constants - for reading values from config files.
 DEFAULT_CONFIG_FILENAME = 'prometeo_config.json'
 WINDOWS_AND_LIMITS_PROPERTY = 'windows_and_limits'
+WINDOW_MINS_PROPERTY = 'mins'
 SUPPORTED_GASES_PROPERTY = 'supported_gases'
 YELLOW_WARNING_PERCENT_PROPERTY = 'yellow_warning_percent'
 SAFE_ROUNDING_FACTORS_PROPERTY = 'safe_rounding_factors'
@@ -144,7 +146,7 @@ class GasExposureAnalytics(object):
             file.close()
 
         # WINDOWS_AND_LIMITS   : A list detailing every supported time-window over which to calcuate the time-weighted
-        #   average (label, number of minutes and gas limit gauges for each window) - e.g. from AEGL-2.
+        #   average (label, number of minutes and gas limit gauges for each window) - e.g. from NIOSH, ACGIH, EU-OSHA.
         self.WINDOWS_AND_LIMITS = configuration[WINDOWS_AND_LIMITS_PROPERTY]
         # SUPPORTED_GASES   : The list of gases that Prometeo devices currently have sensors for.
         #   To automatically enable analytics for new gases, simply add them to this list.
@@ -423,8 +425,8 @@ class GasExposureAnalytics(object):
 
             # Update column titles - add the time period over which we're averaging, so we can merge dataframes later
             # without column name conflicts.
-            window_twa_df = window_twa_df.add_suffix('_' + TWA_SUFFIX + '_' + time_window['label'])
-            window_gauge_df = window_gauge_df.add_suffix('_' + GAUGE_SUFFIX + '_' + time_window['label'])
+            window_twa_df = window_twa_df.add_suffix((TWA_SUFFIX + MIN_SUFFIX) % (str(time_window[WINDOW_MINS_PROPERTY])))
+            window_gauge_df = window_gauge_df.add_suffix((GAUGE_SUFFIX + MIN_SUFFIX) % (str(time_window[WINDOW_MINS_PROPERTY])))
 
             # Now save the results from this time window as a single merged dataframe (TWAs and Limit Gauges)
             calculations_for_all_windows.append(pd.concat([window_twa_df, window_gauge_df], axis='columns'))

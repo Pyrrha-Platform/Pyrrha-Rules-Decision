@@ -1,0 +1,14 @@
+{
+"windows_and_limits":
+    [
+        { "label": "10min", "mins": 10,  "gas_limits": { "carbon_monoxide": 420, "nitrogen_dioxide": 5,  "formaldehyde": 14, "acrolein": 0.44 }},
+        { "label": "30min", "mins": 30,  "gas_limits": { "carbon_monoxide": 150, "nitrogen_dioxide": 1,  "formaldehyde": 14, "acrolein": 0.18 }},
+        { "label": "60min", "mins": 60,  "gas_limits": { "carbon_monoxide": 83,  "nitrogen_dioxide": 1,  "formaldehyde": 14, "acrolein": 0.1  }},
+        { "label": "4hr",   "mins": 240, "gas_limits": { "carbon_monoxide": 33,  "nitrogen_dioxide": 0.5, "formaldehyde": 14, "acrolein": 0.1  }},
+        { "label": "8hr",   "mins": 480, "gas_limits": { "carbon_monoxide": 27,  "nitrogen_dioxide": 0.5, "formaldehyde": 14, "acrolein": 0.1  }}
+    ],
+"supported_gases" :["carbon_monoxide", "nitrogen_dioxide"],
+"yellow_warning_percent" : 80,
+"safe_rounding_factors" : {"carbon_monoxide": 1, "nitrogen_dioxide": 2},
+"autofill_missing_sensor_logs_up_to_N_mins" : 10
+}

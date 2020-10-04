@@ -1,0 +1,42 @@
+In the USA
+ * OSHA sets the law on exposure hazards, but the OSHA regulations are old.
+ * NIOSH is a research wing of the CDC that makes updated recommendations to OSHA, so it's limits tend to be more up to date (safer).
+ * Similar to NIOSH, ACGIH also makes recommendations about safety alone, without reference practicality.
+In Europe 
+ * EU-OSHA has a similar regulatory role to OSHAc.
+ * SCOEL has a similar advisory role to NIOSH.
+
+(All numbers below in PPM)
+
+Carbon Monoxide :
+    ACGIH TLV               : 25 (8hr TWA)                          https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    NIOSH REL (up to 10hrs) : 35 (8-10hr TWA), 200 (Ceil)           https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    Cal/OSHA PEL            : 25 (8hr TWA), 200 (Ceil)              https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    OSHA PEL                : 50 (8hr TWA)                          https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    EU (IOELV)              : 20 (8hr TWA), 100 (STEL 15min)        https://eur-lex.europa.eu/legal-content/EN/ALL/?uri=CELEX:32017L0164, https://echa.europa.eu/indicative-oelvs-dir-2017-164/-/legislationlist/details/EU-IOELV_LIST_4-ANX_I-100.010.118-VSK-5F41D0
+    AEGL-2                  : TWAs: 27 (8hr), 33 (4hr), 83 (60min), 150 (30min), 420 (10 min)           https://www.epa.gov/aegl/carbon-monoxide-results-aegl-program
+
+
+Nitrogen Dioxide :
+    ACGIH TLV               : 0.2 (8hr TWA)                         https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    NIOSH REL (up to 10hrs) : 1 ppm (STEL 15min)                    https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    Cal/OSHA PEL            : 1 (STEL)                              https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    OSHA PEL                : 5 (Ceil)                              https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    EU (IOELV)              : 0.5 (8hr TWA), 1.0 (STEL 15min)       https://eur-lex.europa.eu/legal-content/EN/ALL/?uri=CELEX:32017L0164, https://echa.europa.eu/indicative-oelvs-dir-2017-164/-/legislationlist/details/EU-IOELV_LIST_4-ANX_I-100.030.234-VSK-5F41BE
+    AEGL-2                  : TWAs: 6.7 (8hr), 8.2 (4hr), 12 (60min), 15 (30min), 20 (10 min)           https://www.epa.gov/aegl/nitrogen-dioxide-aegl-program
+
+Acrolein :
+    ACGIH TLV               : 0.1 (8hr TWA)                         https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    NIOSH REL (up to 10hrs) : 0.1 (8hr TWA), 0.3 ppm (STEL 15min)   https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    Cal/OSHA PEL            : 0.1 (Ceil)                            https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    OSHA PEL                : 0.1 (8hr TWA)                         https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    EU (IOELV)              : 0.02 (8hr TWA), 0.05 (STEL 15min)     https://eur-lex.europa.eu/legal-content/EN/ALL/?uri=CELEX:32017L0164 , https://echa.europa.eu/indicative-oelvs-dir-2017-164/-/legislationlist/details/EU-IOELV_LIST_4-ANX_I-100.003.141-VSK-5F41C2
+    AEGL-2                  : TWAs: 0.10 (8hr), 0.10 (4hr), 0.10 (60min), 0.18 (30min), 0.44 (10 min)   https://www.epa.gov/aegl/acrolein-results-aegl-program
+
+Formaldehyde :
+    ACGIH TLV               : 0.1 (8hr TWA), 0.3 (STEL)             https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    NIOSH REL (up to 10hrs) : 0.016 (8hr TWA), 0.1 (Ceil 15-min)    https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    Cal/OSHA PEL            : 0.75 (8hr TWA), 2 (STEL)              https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    OSHA PEL                : n/a                                   https://www.osha.gov/dsg/annotated-pels/tablez-1.html
+    EU (IOELV)              : 0.3 (8hr TWA), 0.6 (STEL)             https://echa.europa.eu/substance-information/-/substanceinfo/100.000.002
+    AEGL-2                  : TWAs: 14 (8hr), 14 (4hr), 14 (60min), 14 (30min), 14 (10 min)             https://www.epa.gov/aegl/formaldehyde-results-aegl-program

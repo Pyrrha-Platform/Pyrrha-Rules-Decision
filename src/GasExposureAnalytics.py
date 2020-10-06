@@ -12,9 +12,11 @@ import logging
 SENSOR_LOG_TABLE = 'firefighter_sensor_log'
 ANALYTICS_TABLE = 'firefighter_status_analytics'
 FIREFIGHTER_ID_COL = 'firefighter_id'
-FIREFIGHTER_ID_COL_TYPE = sqlalchemy.types.VARCHAR(length=20) # mySQL needs to be told this explicitly in order to generate correct SQL
+# mySQL needs to be told the firefighter_id column type explicitly in order to generate correct SQL.
+FIREFIGHTER_ID_COL_TYPE = sqlalchemy.types.VARCHAR(length=20)
 TIMESTAMP_COL = 'timestamp_mins'
-# Normally the 'analytics' LED color will be the same as the 'device' LED color, but in a disconnected scenario, they may be different. We want to capture both. 
+# Normally the 'analytics' LED color will be the same as the 'device' LED color, but in a disconnected scenario, they
+# may be different. We want to capture both. 
 STATUS_LED_COL = 'analytics_status_LED'
 TWA_SUFFIX = '_twa'
 GAUGE_SUFFIX = '_gauge'
@@ -22,6 +24,7 @@ MIN_SUFFIX = '_%smin'
 GREEN = 1
 YELLOW = 2
 RED = 3
+RANGE_EXCEEDED = -1
 
 # Cache Constants
 DATA_START = 'data_start'
@@ -34,7 +37,7 @@ PROPORTION_OF_WINDOW = 'proportion_of_window'
 # Status constants - percentages that define green/red status (yellow is the name of a configuration parameter)
 GREEN_RANGE_START = 0
 RED_RANGE_START = 99
-RED_RANGE_END = np.Inf
+RED_RANGE_END = RED_RANGE_START * 1000 # Can be arbitrarily large, as the next range bound is np.inf.
 
 # Configuration constants - for reading values from config files.
 DEFAULT_CONFIG_FILENAME = 'prometeo_config.json'
@@ -46,12 +49,16 @@ SAFE_ROUNDING_FACTORS_PROPERTY = 'safe_rounding_factors'
 GAS_LIMITS_PROPERTY = 'gas_limits'
 AUTOFILL_MINS_PROPERTY = 'autofill_missing_sensor_logs_up_to_N_mins'
 
-# Sensor range limitations. These are intentionally hard-coded and not configured. They're used to cross-check
-# that the PPM limits configured for each time-window respects the sensitivity range of the sensors.
+# Sensor range limitations. These are intentionally hard-coded and not configured. They're used
+# to 1. Cross-check that the PPM limits configured for each time-window respects the sensitivity
+# range of the sensors and 2. Check when sensor values have gone out of range.
 SENSOR_RANGE_PPM  = {
     'carbon_monoxide'  : {'min' : 1   , 'max' : 1000}, # CJMCU-4541 / MICS-4514 Sensor
     'nitrogen_dioxide' : {'min' : 0.05, 'max' : 10  }  # CJMCU-4541 / MICS-4514 Sensor
 }
+# The range tolerance gives a little leeway to the 'range exceeded' detection. Sensors whose PPM values get within this
+# percentage of the limit are treated as having exceeded the limit. (Otherwise 'range exceeded' might never be triggered)
+RANGE_TOLERANCE = 0.05 # i.e. 5%
 
 
 class GasExposureAnalytics(object):
@@ -84,13 +91,23 @@ class GasExposureAnalytics(object):
             self.logger.critical(message)
             critical_config_issues += [message]
 
-        # For each supported gas, check that limits PPM configuration is within the sensitivity / range of the sensor.
+        # For each supported gas, check that limits PPM configuration is within that sensor's range.
+        # The limits should be no less than double the range of the sensor. To to illustrate why:
+        # Say a firefighter experiences [30mins at 1ppm. Then 30mins at 25ppm] and the 1hr limit is 10ppm.  Then one
+        # hour into the fire, this firefighter has experienced an average of 13ppm per hour, well over the 10ppm
+        # limit - their status should be ‘Red’. However, if the range of the sensor is 0-10ppm, then the command center
+        # would actually see their status as *Green* (not Red or even Yellow) with a 5.5ppm per hour average - seemingly
+        # well under the limit. Why? Because the sensor would have provided [30mins at 1ppm. Then 30mins at 10ppm] which
+        # averages to 5.5ppm. For time-weighted average math to give reliable results, the sensor must have a much
+        # larger range than the limits - 2x being a minimum. If the limit is set at or near the sensor range, a
+        # firefighter's status would essentially never go red, even if they were well over the limit.
         for gas in self.SUPPORTED_GASES :
             limits = [window[GAS_LIMITS_PROPERTY][gas] for window in self.WINDOWS_AND_LIMITS]
-            if ( (min(limits) < SENSOR_RANGE_PPM[gas]['min']) or (max(limits) > SENSOR_RANGE_PPM[gas]['max']) ) : 
+            if ( (min(limits) < SENSOR_RANGE_PPM[gas]['min']) or ((max(limits)*2) > SENSOR_RANGE_PPM[gas]['max']) ) : 
                 valid_config = False
-                message = "%s : One or more of the '%s' configurations %s exceeds the sensitivity range of the '%s' sensor (min: %s, max: %s)." \
-                    % (config_filename, GAS_LIMITS_PROPERTY, limits, gas, SENSOR_RANGE_PPM[gas]['min'], SENSOR_RANGE_PPM[gas]['max'])
+                message = ("%s : One or more of the '%s' configurations %s is incompatible with the range of the '%s' sensor (min: %s, max: %s)." +
+                           "\nPlease note that sensors must have a much larger range than the limits - 2x being a minimum.") \
+                           % (config_filename, GAS_LIMITS_PROPERTY, limits, gas, SENSOR_RANGE_PPM[gas]['min'], SENSOR_RANGE_PPM[gas]['max'])
                 self.logger.critical(message)
                 critical_config_issues += [message]
 
@@ -120,7 +137,7 @@ class GasExposureAnalytics(object):
             critical_config_issues += [message]
         elif (self.AUTOFILL_MINS > 20) :
             # Recommended (but not enforced) to be less than 20 mins.
-            warning = "%s : '%s' is not recommended to be moreo than 20 minutes, but is %s" \
+            warning = "%s : '%s' is not recommended to be more than 20 minutes, but is %s" \
                 % (config_filename, AUTOFILL_MINS_PROPERTY, self.AUTOFILL_MINS)
             self.logger.warning(warning)
 
@@ -303,6 +320,21 @@ class GasExposureAnalytics(object):
         longest_window_start = timestamp_key - pd.Timedelta(minutes=longest_window_mins) + one_minute
         longest_window_df = sensor_log_chunk[longest_window_start:timestamp_key]
 
+        # It's essential to know when a sensor has exceeded its range. When this happens, we need to replace that
+        # sensor's incorrect PPM value with a value that both 1. identifies it as 'range exceeded' and 2. also causes
+        # calculated values like TWAs and Gauges to be similarly identified. That value is infinity (np.inf).
+        # To to illustrate why: Say a firefighter experiences [30mins at 1ppm. Then 30mins at 25ppm] and the 1 hour
+        # limit is 10ppm.  Then 1 hour into the fire, this firefighter has experienced an average of 13ppm per hour,
+        # well over the 10ppm limit - their status should be ‘Red’. However, if the range of the sensor is 0-10ppm,
+        # then the sensor can only provide [30mins at 1ppm. Then 30mins at 10ppm], averaging to 5.5ppm per hour which
+        # is *Green* (not Red or even Yellow).  To prevent this kind of under-reporting, we substitute np.inf for any 
+        # sensors values that have exceed their ranges. This will then propagate correctly through the averaging
+        # process.
+        sensor_maxima = [SENSOR_RANGE_PPM[gas]['max'] * (1 - RANGE_TOLERANCE) for gas in self.SUPPORTED_GASES]
+        longest_window_df[self.SUPPORTED_GASES] = (longest_window_df[self.SUPPORTED_GASES].mask(
+                                                   cond=(longest_window_df[self.SUPPORTED_GASES] >= sensor_maxima),
+                                                   other=np.inf))
+
         # To calculate time-weighted averages, every time-slice in the window is quantized ('resampled') to equal
         # 1-minute lengths. (it can be done with 'ragged' / uneven time-slices, but the code is more complex and
         # hence error-prone, so we use 1-min quantization as standard here). The system is expected to provide data
@@ -417,11 +449,10 @@ class GasExposureAnalytics(object):
             window_twa_df = window_twa_df.reset_index().set_index([FIREFIGHTER_ID_COL, TIMESTAMP_COL])
             
             # Calculate gas limit gauge - percentage over / under the calculated TWA values
-            # (must compare gases in the same order as the dataframe columns)
-            limits_in_column_order = [float(time_window[GAS_LIMITS_PROPERTY][gas])
-                                        for gas in window_twa_df.columns if gas in self.SUPPORTED_GASES]
-            window_gauge_df = ((window_twa_df * 100 / limits_in_column_order)
-                               .round(0).astype(int)) # percentages are whole integers, we don't need floats
+            # (force gases and limits to have the same column order as each other before comparing)
+            gas_limits = [float(time_window[GAS_LIMITS_PROPERTY][gas]) for gas in self.SUPPORTED_GASES]
+            window_gauge_df = ((window_twa_df[self.SUPPORTED_GASES] * 100 / gas_limits)
+                                .round(0)) # we don't need decimal precision for percentages
 
             # Update column titles - add the time period over which we're averaging, so we can merge dataframes later
             # without column name conflicts.
@@ -438,17 +469,26 @@ class GasExposureAnalytics(object):
         if not latest_device_data :
             # Do this for all sensor columns, except the two keys
             for col in list(set(longest_window_df.columns) - set([FIREFIGHTER_ID_COL, TIMESTAMP_COL])) :
-                everything_for_1_min_df[col] = None # todo: more "pandas-y" way of achieving this?
+                everything_for_1_min_df[col] = None # todo: more idiomatic way of achieving this in pandas
 
         # Now that we have all the informatiom, we can determine the overall Firefighter status.
-        # Green/Red status boundaries are constant, yellow is configurable.
+        # Green/Red status boundaries are constant, yellow is configurable. If a sensor exceeded its range, then the
+        # Firefighter's status cannot be accurately determined (and the Gauge value will be np.inf)
         yellow_range_start = self.YELLOW_WARNING_PERCENT - 1
         everything_for_1_min_df[STATUS_LED_COL] = pd.cut(
             everything_for_1_min_df.filter(like=GAUGE_SUFFIX).max(axis='columns'),
-            bins=[GREEN_RANGE_START, yellow_range_start, RED_RANGE_START, RED_RANGE_END], include_lowest=True,
-            labels=[GREEN,YELLOW,RED])
-        
-        # Make the dataframe easier to print/read/debug
+            bins=[GREEN_RANGE_START, yellow_range_start, RED_RANGE_START, RED_RANGE_END, np.inf], include_lowest=True,
+            labels=[GREEN,YELLOW,RED,RANGE_EXCEEDED])
+
+        # Use the Prometeo constant for 'out-of-range sensor value' rather than np.inf from here on.
+        # (np.inf is useful for the math, but not for communicating / storing / displaying).
+        # Here we convert calculated TWA and Gauge np.inf values to 
+        gas_cols = everything_for_1_min_df.columns[everything_for_1_min_df.columns.str.contains("|".join(self.SUPPORTED_GASES))]
+        everything_for_1_min_df[gas_cols] = (everything_for_1_min_df[gas_cols]
+                                             .fillna(value=np.nan)
+                                             .mask(cond=np.isinf, other=RANGE_EXCEEDED))
+
+        # Make the dataframe easier to print/read/debug 
         col_headers_sorted_for_readability = sorted(everything_for_1_min_df.columns.to_list(), key=str.casefold)
         everything_for_1_min_df = everything_for_1_min_df[col_headers_sorted_for_readability]
         
@@ -478,7 +518,7 @@ class GasExposureAnalytics(object):
         # cost of the DB reads not being as efficient as they could be. (e.g. it would be more efficient to read 48
         # previously-calculated 10-min TWAs and average *those*, instead of averaging 480 raw 1-min sensor logs
         # (a word of caution - the average of an average is NOT automatically a valid average, care needs to be taken
-        # with demoninators...). This would be more efficient, but poorer quality, because the 'right now' limit
+        # with denominators...). This would be more efficient, but poorer quality, because the 'right now' limit
         # detection would be based on derived values containing assumptions about missing data). So for now, we
         # prioritise quality and resist "premature optimisation/efficiency" at least until the system is
         # sound / correct, after which optimisation tradeoffs can be prioritised as needed.

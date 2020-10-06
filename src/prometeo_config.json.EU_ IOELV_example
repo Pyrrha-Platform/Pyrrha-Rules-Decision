@@ -4,7 +4,7 @@
         { "label": "15min STEL", "mins": 15,  "gas_limits": { "carbon_monoxide": 100, "nitrogen_dioxide": 1.0, "formaldehyde": 0.6, "acrolein": 0.05 }},
         { "label": "8hr TWA",    "mins": 480, "gas_limits": { "carbon_monoxide": 20,  "nitrogen_dioxide": 0.5, "formaldehyde": 0.3, "acrolein": 0.02 }}
     ],
-"supported_gases" :["carbon_monoxide"],
+"supported_gases" :["carbon_monoxide", "nitrogen_dioxide"],
 "yellow_warning_percent" : 80,
 "safe_rounding_factors" : {"carbon_monoxide": 1, "nitrogen_dioxide": 2},
 "autofill_missing_sensor_logs_up_to_N_mins" : 10

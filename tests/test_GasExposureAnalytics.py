@@ -24,11 +24,14 @@ TWA_SUFFIX = '_twa'
 GAUGE_SUFFIX = '_gauge'
 MIN_SUFFIX = '_%smin'
 WINDOW_MINS_PROPERTY = 'mins'
+
+# STATUS
 GREEN = 1
 YELLOW = 2
 RED = 3
-STATUS_LABEL = {GREEN: 'Green', YELLOW: 'Yellow', RED: 'Red'}
-
+RANGE_EXCEEDED = -1
+STATUS_UNAVAILABLE = np.NaN
+STATUS_LABEL = {GREEN: 'Green', YELLOW: 'Yellow', RED: 'Red', RANGE_EXCEEDED: 'Sensor Range Exceeded', STATUS_UNAVAILABLE: 'Unavailable'}
 
 # ---------------------------------------
 
@@ -97,8 +100,9 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
                                 expected_values, actual_values)))
 
         # Check that the overall calculated status matches the 'expected' status.
+        both_statuses_NaN = pd.isna([expected_status, actual_status]).all()
         if expected_status is not None :
-            self.assertTrue((expected_status == actual_status),
+            self.assertTrue((expected_status == actual_status) or (both_statuses_NaN),
                             (("%s expected to be %s (%s) but was %s (%s) \n\t(debug: %s - firefighter '%s')")
                             % (STATUS_LED_COL, STATUS_LABEL[expected_status], expected_status,
                             STATUS_LABEL[actual_status], actual_status, timestamp_str, firefighter)))
@@ -252,10 +256,10 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
         self._check_twas_for_one_firefighter_one_gas('0006', '2000-01-01 12:05:00', CARBON_MONOXIDE_COL,
                                                      expected_values=[68.0, 117.8, 72.2, 21.5, 10.8])
     
-    def test_correct_twas_still_provided_when_live_sensor_is_offline_gas2(self):
-        # Test a period when there are device connection dropouts, but the TWAs are OK
+    def test_correct_twas_still_provided_when_live_sensor_is_offline_and_gas2_sensor_range_exceeded(self):
+        # Test a period when there are device connection dropouts, AND a gas sensor maxed out more than 10 mins ago.
         self._check_twas_for_one_firefighter_one_gas('0006', '2000-01-01 12:05:00', NITROGEN_DIOXIDE_COL,
-                                                     expected_values=[3.4, 5.89, 3.61, 1.08, 0.54])
+                                                     expected_values=[3.4, RANGE_EXCEEDED, RANGE_EXCEEDED, RANGE_EXCEEDED, RANGE_EXCEEDED])
 
 
     def test_status_is_green_just_before_80pc_of_one_limit(self):
@@ -400,16 +404,16 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def test_sample_point_0050_TWAs_gas2(self):
         # test TWA calculations for nitrogen dioxide
         self._check_twas_for_one_firefighter_one_gas('0006', '2000-01-01 10:35:00', NITROGEN_DIOXIDE_COL,
-                                                     expected_values=[2.24, 1.22, 0.61, 0.15, 0.08])
+                                                     expected_values=[RANGE_EXCEEDED, RANGE_EXCEEDED, RANGE_EXCEEDED, RANGE_EXCEEDED, RANGE_EXCEEDED])
 
     def test_sample_point_0050_Gauges_gas1(self):
         # test Gauge calculations for carbon monoxide
         self._check_gauges_for_one_firefighter_one_gas('0006', '2000-01-01 10:35:00', CARBON_MONOXIDE_COL,
                                                      expected_values=[11.0, 16.0, 15.0, 9.0, 6.0]) # note: will be 'RED' due to NO2
     def test_sample_point_0050_Gauges_gas2(self):
-        # test Gauge calculations for nitrogen dioxide
+        # test Gauge calculations for nitrogen dioxide when the nitrogen dioxide sensor is maxed out within the last 10 mins.
         self._check_gauges_for_one_firefighter_one_gas('0006', '2000-01-01 10:35:00', NITROGEN_DIOXIDE_COL,
-                                                     expected_values=[45.0, 122.0, 61.0, 30.0, 16.0], expected_status=RED)
+                                                     expected_values=[RANGE_EXCEEDED, RANGE_EXCEEDED, RANGE_EXCEEDED, RANGE_EXCEEDED, RANGE_EXCEEDED], expected_status=RANGE_EXCEEDED)
 
 
     def test_sample_point_0060_TWAs_gas1(self):

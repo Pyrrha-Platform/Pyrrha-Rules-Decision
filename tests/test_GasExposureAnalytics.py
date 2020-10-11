@@ -4,6 +4,7 @@ import unittest
 import pandas as pd
 import numpy as np
 import logging
+from dotenv import load_dotenv
 
 import src
 from src import GasExposureAnalytics
@@ -11,8 +12,13 @@ from src import GasExposureAnalytics
 # ---------------------------------------
 
 # DATASET FOR TESTING
-TEST_DATA_CSV_FILEPATH = os.path.join(os.path.dirname(__file__), 'GasExposureAnalytics_test_dataset.csv')
-ANALYTIC_CONFIGURATION_FOR_THIS_TEST = os.path.join(os.path.dirname(__file__), 'GasExposureAnalytics_test_config.json')
+TEST_DIR = os.path.dirname(__file__)
+TEST_DATA_CSV_FILEPATH = os.path.join(TEST_DIR, 'GasExposureAnalytics_test_dataset.csv')
+ANALYTIC_CONFIGURATION_FOR_THIS_TEST = os.path.join(TEST_DIR, 'GasExposureAnalytics_test_config.json')
+
+# load environment variables
+SRC_DIR = os.path.join(os.path.dirname(TEST_DIR), 'src')
+load_dotenv(os.path.join(SRC_DIR, '.env'))
 
 # FIELD / COLUMN / VALUE NAMES
 FIREFIGHTER_ID_COL = 'firefighter_id'

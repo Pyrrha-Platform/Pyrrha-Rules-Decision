@@ -12,9 +12,11 @@ import logging
 SENSOR_LOG_TABLE = 'firefighter_sensor_log'
 ANALYTICS_TABLE = 'firefighter_status_analytics'
 FIREFIGHTER_ID_COL = 'firefighter_id'
-FIREFIGHTER_ID_COL_TYPE = sqlalchemy.types.VARCHAR(length=20) # mySQL needs to be told this explicitly in order to generate correct SQL
+# mySQL needs to be told the firefighter_id column type explicitly in order to generate correct SQL.
+FIREFIGHTER_ID_COL_TYPE = sqlalchemy.types.VARCHAR(length=20)
 TIMESTAMP_COL = 'timestamp_mins'
-# Normally the 'analytics' LED color will be the same as the 'device' LED color, but in a disconnected scenario, they may be different. We want to capture both. 
+# Normally the 'analytics' LED color will be the same as the 'device' LED color, but in a disconnected scenario, they
+# may be different. We want to capture both. 
 STATUS_LED_COL = 'analytics_status_LED'
 TWA_SUFFIX = '_twa'
 GAUGE_SUFFIX = '_gauge'
@@ -22,6 +24,7 @@ MIN_SUFFIX = '_%smin'
 GREEN = 1
 YELLOW = 2
 RED = 3
+RANGE_EXCEEDED = -1
 
 # Cache Constants
 DATA_START = 'data_start'
@@ -34,7 +37,7 @@ PROPORTION_OF_WINDOW = 'proportion_of_window'
 # Status constants - percentages that define green/red status (yellow is the name of a configuration parameter)
 GREEN_RANGE_START = 0
 RED_RANGE_START = 99
-RED_RANGE_END = np.Inf
+RED_RANGE_END = RED_RANGE_START * 1000 # Can be arbitrarily large, as the next range bound is np.inf.
 
 # Configuration constants - for reading values from config files.
 DEFAULT_CONFIG_FILENAME = 'prometeo_config.json'
@@ -46,8 +49,9 @@ SAFE_ROUNDING_FACTORS_PROPERTY = 'safe_rounding_factors'
 GAS_LIMITS_PROPERTY = 'gas_limits'
 AUTOFILL_MINS_PROPERTY = 'autofill_missing_sensor_logs_up_to_N_mins'
 
-# Sensor range limitations. These are intentionally hard-coded and not configured. They're used to cross-check
-# that the PPM limits configured for each time-window respects the sensitivity range of the sensors.
+# Sensor range limitations. These are intentionally hard-coded and not configured. They're used
+# to 1. Cross-check that the PPM limits configured for each time-window respects the sensitivity
+# range of the sensors and 2. Check when sensor values have gone out of range.
 SENSOR_RANGE_PPM  = {
     'carbon_monoxide'  : {'min' : 1   , 'max' : 1000}, # CJMCU-4541 / MICS-4514 Sensor
     'nitrogen_dioxide' : {'min' : 0.05, 'max' : 10  }  # CJMCU-4541 / MICS-4514 Sensor
@@ -84,13 +88,23 @@ class GasExposureAnalytics(object):
             self.logger.critical(message)
             critical_config_issues += [message]
 
-        # For each supported gas, check that limits PPM configuration is within the sensitivity / range of the sensor.
+        # For each supported gas, check that limits PPM configuration is within that sensor's range.
+        # The limits should be no less than double the range of the sensor. To to illustrate why:
+        # Say a firefighter experiences [30mins at 1ppm. Then 30mins at 25ppm] and the 1hr limit is 10ppm.  Then one
+        # hour into the fire, this firefighter has experienced an average of 13ppm per hour, well over the 10ppm
+        # limit - their status should be ‘Red’. However, if the range of the sensor is 0-10ppm, then the command center
+        # would actually see their status as *Green* (not Red or even Yellow) with a 5.5ppm per hour average - seemingly
+        # well under the limit. Why? Because the sensor would have provided [30mins at 1ppm. Then 30mins at 10ppm] which
+        # averages to 5.5ppm. For time-weighted average math to give reliable results, the sensor must have a much
+        # larger range than the limits - 2x being a minimum. If the limit is set at or near the sensor range, a
+        # firefighter's status would essentially never go red, even if they were well over the limit.
         for gas in self.SUPPORTED_GASES :
             limits = [window[GAS_LIMITS_PROPERTY][gas] for window in self.WINDOWS_AND_LIMITS]
-            if ( (min(limits) < SENSOR_RANGE_PPM[gas]['min']) or (max(limits) > SENSOR_RANGE_PPM[gas]['max']) ) : 
+            if ( (min(limits) < SENSOR_RANGE_PPM[gas]['min']) or ((max(limits)*2) > SENSOR_RANGE_PPM[gas]['max']) ) : 
                 valid_config = False
-                message = "%s : One or more of the '%s' configurations %s exceeds the sensitivity range of the '%s' sensor (min: %s, max: %s)." \
-                    % (config_filename, GAS_LIMITS_PROPERTY, limits, gas, SENSOR_RANGE_PPM[gas]['min'], SENSOR_RANGE_PPM[gas]['max'])
+                message = ("%s : One or more of the '%s' configurations %s is incompatible with the range of the '%s' sensor (min: %s, max: %s)." +
+                           "\nPlease note that sensors must have a much larger range than the limits - 2x being a minimum.") \
+                           % (config_filename, GAS_LIMITS_PROPERTY, limits, gas, SENSOR_RANGE_PPM[gas]['min'], SENSOR_RANGE_PPM[gas]['max'])
                 self.logger.critical(message)
                 critical_config_issues += [message]
 
@@ -120,7 +134,7 @@ class GasExposureAnalytics(object):
             critical_config_issues += [message]
         elif (self.AUTOFILL_MINS > 20) :
             # Recommended (but not enforced) to be less than 20 mins.
-            warning = "%s : '%s' is not recommended to be moreo than 20 minutes, but is %s" \
+            warning = "%s : '%s' is not recommended to be more than 20 minutes, but is %s" \
                 % (config_filename, AUTOFILL_MINS_PROPERTY, self.AUTOFILL_MINS)
             self.logger.warning(warning)
 
@@ -255,20 +269,20 @@ class GasExposureAnalytics(object):
             #                 join an event (and different for each Firefighter)
             # [DATA_END]  : the latest observed data point for each firefighter so far - a moving target, but
             #                 fixed for *this* chunk of data (and potentially different for each Firefighter)
-            ff_time_spans_in_this_block = (pd.DataFrame(sensor_log_df.reset_index()
-                                                .groupby(FIREFIGHTER_ID_COL)[TIMESTAMP_COL]
-                                                .agg(['min', 'max']))
+            ff_time_spans_in_this_block_df = (pd.DataFrame(sensor_log_df.reset_index()
+                                                .groupby(FIREFIGHTER_ID_COL)
+                                                [TIMESTAMP_COL].agg(['min', 'max']))
                                                 .rename(columns = {'min':DATA_START, 'max':DATA_END}))
             if self._FF_TIME_SPANS_CACHE is None :
                 # First-time cache creation
-                self._FF_TIME_SPANS_CACHE = pd.DataFrame(ff_time_spans_in_this_block)
+                self._FF_TIME_SPANS_CACHE = pd.DataFrame(ff_time_spans_in_this_block_df)
             else :  
                 # Update the earliest and latest observed timestamp for each firefighter.
                 # note: use pd.merge() not pd.concat() - concat drops the index names causing later steps to crash
-                self._FF_TIME_SPANS_CACHE = pd.merge(np.fmin(ff_time_spans_in_this_block[DATA_START],
-                                                             self._FF_TIME_SPANS_CACHE[DATA_START]),
-                                                     np.fmax(ff_time_spans_in_this_block[DATA_END],
-                                                             self._FF_TIME_SPANS_CACHE[DATA_END]),
+                self._FF_TIME_SPANS_CACHE = pd.merge(np.fmin(ff_time_spans_in_this_block_df.loc[:, DATA_START],
+                                                             self._FF_TIME_SPANS_CACHE.loc[:, DATA_START]),
+                                                     np.fmax(ff_time_spans_in_this_block_df.loc[:, DATA_END],
+                                                             self._FF_TIME_SPANS_CACHE.loc[:, DATA_END]),
                                                      how='outer', on=FIREFIGHTER_ID_COL)
 
             # Take a working copy of the cache, so we can manupulate it during analytic processing.
@@ -279,19 +293,19 @@ class GasExposureAnalytics(object):
             # It will 'treat' the missing data (e.g. by substituting an average). After this number of minutes of
             # missing sensor data, the system will stop estimating and assume the firefighter has powered 
             # off their device and left the event.
-            ff_time_spans_df[DATA_END] = ff_time_spans_df[DATA_END] + pd.Timedelta(minutes = self.AUTOFILL_MINS)
+            ff_time_spans_df.loc[:, DATA_END] += pd.Timedelta(minutes = self.AUTOFILL_MINS)
 
         return sensor_log_df, ff_time_spans_df
 
 
     # Given up to 8 hours of data, calculates the time-weighted average and limit gauge (%) for all firefighters, for
     # all supported gases, for all configured time periods.
-    # sensor_log_chunk   : A time-indexed dataframe covering up to 8 hours of sensor data for all firefighters,
+    # sensor_log_chunk_df: A time-indexed dataframe covering up to 8 hours of sensor data for all firefighters,
     #                      for all supported gases. Requires firefighterID and supported gases as columns.
     # ff_time_spans_df   : A dataset containing the 'earliest and latest observed data points for each 
     #                      firefighter'. Necessary for the AUTOFILL_MINS functionality.
     # timestamp_key :    The minute-quantized timestamp key for which to calculate time-weighted averages.
-    def _calculate_TWA_and_gauge_for_all_firefighters(self, sensor_log_chunk, ff_time_spans_df, timestamp_key) :
+    def _calculate_TWA_and_gauge_for_all_firefighters(self, sensor_log_chunk_df, ff_time_spans_df, timestamp_key) :
 
         # We'll be processing the windows in descending order of length (mins) 
         windows_in_desc_mins_order = sorted([w for w in self.WINDOWS_AND_LIMITS], key=lambda w: w['mins'], reverse=True)
@@ -301,7 +315,22 @@ class GasExposureAnalytics(object):
         # is *in*clusive and we don't want N+1 samples in an N min block of sensor records.
         one_minute = pd.Timedelta(minutes = 1)
         longest_window_start = timestamp_key - pd.Timedelta(minutes=longest_window_mins) + one_minute
-        longest_window_df = sensor_log_chunk[longest_window_start:timestamp_key]
+        longest_window_df = sensor_log_chunk_df.loc[longest_window_start:timestamp_key, :]
+
+        # It's essential to know when a sensor value can't be trusted - i.e. when it has exceeded its range (signalled
+        # by the value '-1'). When this happens, we need to replace that sensor's value with something that
+        # both 1. identifies it as untrustworthy and 2. also causes calculated values like TWAs and Gauges to be
+        # similarly identified. That value is infinity (np.inf). To to illustrate why: Say a firefighter experiences
+        # [30mins at 1ppm. Then 30mins at 25ppm] and the 1 hour limit is 10ppm.  Then 1 hour into the fire, this
+        # firefighter has experienced an average of 13ppm per hour, well over the 10ppm limit - their status should be
+        # ‘Red’. However, if the range of the sensor were 0-10ppm, then at best, the sensor could only provide [30mins
+        # at 1ppm. Then 30mins at 10ppm], averaging to 5.5ppm per hour which is *Green* (not Red or even Yellow).  To
+        # prevent this kind of under-reporting, the device sends '-1' to indicate that the sensor has exceeded its
+        # range and we substitute that with infinity (np.inf), which then flows correctly through the time-weighted
+        # average calculations.
+        longest_window_df.loc[:, self.SUPPORTED_GASES] = (longest_window_df.loc[:, self.SUPPORTED_GASES].mask(
+                                                   cond=(longest_window_df.loc[:, self.SUPPORTED_GASES] < 0),
+                                                   other=np.inf))
 
         # To calculate time-weighted averages, every time-slice in the window is quantized ('resampled') to equal
         # 1-minute lengths. (it can be done with 'ragged' / uneven time-slices, but the code is more complex and
@@ -332,7 +361,7 @@ class GasExposureAnalytics(object):
                                         .reset_index()
                                         .set_index([FIREFIGHTER_ID_COL, TIMESTAMP_COL])  # key to merge on at the end
                                         )
-            # Store for merging later on
+            # Store in a list for merging later on
             latest_device_data = [latest_sensor_readings_df] 
         else : 
             message = "No 'live' sensor records found at timestamp %s. Calculating Time-Weighted Averages anyway..."
@@ -388,40 +417,41 @@ class GasExposureAnalytics(object):
 
             # (A.1) Get the available data timespans for each Firefighter, only selecting firefighters that are in
             # this window. (take a copy so that data from one window does not contaminate the next)
-            overlap_df = ff_time_spans_df[ff_time_spans_df.index.isin(window_df[FIREFIGHTER_ID_COL].unique())].copy()
+            ffs_in_this_window = window_df.loc[:, FIREFIGHTER_ID_COL].unique()
+            overlap_df = ff_time_spans_df.loc[ff_time_spans_df.index.isin(ffs_in_this_window), :].copy()
 
             # (A.2) Add on the moving window timespans (note: no start correction here because it's not a slice.
-            overlap_df[WINDOW_START] = timestamp_key - window_length
-            overlap_df[WINDOW_END] = timestamp_key
+            overlap_df = overlap_df.assign(**{WINDOW_START : timestamp_key - window_length, WINDOW_END : timestamp_key})            
 
             # (A.3) Calculate the overlap between the moving window and the available data timespans for each Firefighter.
             # overlap = (earliest_end_time - latest_start_time). Negative overlap is meaningless, so when it happens,
             # treat it as zero overlap.
-            overlap_delta = (overlap_df[[DATA_END,WINDOW_END]].min(axis='columns')
-                             - overlap_df[[DATA_START,WINDOW_START]].max(axis='columns'))
-            overlap_df[OVERLAP_MINS] = (overlap_delta.transform(
+            overlap_delta = (overlap_df.loc[:, [DATA_END,WINDOW_END]].min(axis='columns')
+                             - overlap_df.loc[:, [DATA_START,WINDOW_START]].max(axis='columns'))
+            overlap_df.loc[:, OVERLAP_MINS] = (overlap_delta.transform(
                 lambda delta: delta.total_seconds()/float(60) if delta.total_seconds() > 0 else 0))
 
             # (B) Divide the overlap by the total length of the time-window to get a proportion. Maximum overlap is 1.
-            overlap_df[PROPORTION_OF_WINDOW] = (overlap_df[OVERLAP_MINS].transform(
+            overlap_df.loc[:, PROPORTION_OF_WINDOW] = (overlap_df.loc[:, OVERLAP_MINS].transform(
                 lambda overlap_mins : overlap_mins/float(window_mins) if overlap_mins < window_mins else 1))
 
             # (C) Multiply the TWAs for each firefighter by the proportion for that firefighter.
             # Also apply rounding at this point.
-            window_twa_df = window_twa_df.multiply(overlap_df[PROPORTION_OF_WINDOW], axis='rows')
+            window_twa_df = window_twa_df.multiply(overlap_df.loc[:, PROPORTION_OF_WINDOW], axis='rows')
             for gas in self.SUPPORTED_GASES : 
-                window_twa_df[gas] = np.round(window_twa_df[gas], self.SAFE_ROUNDING_FACTORS[gas])
+                window_twa_df.loc[:, gas] = np.round(window_twa_df.loc[:, gas], self.SAFE_ROUNDING_FACTORS[gas])
             
             # Prepare the results for limit gauges and merging
-            window_twa_df[TIMESTAMP_COL] = timestamp_key
-            window_twa_df = window_twa_df.reset_index().set_index([FIREFIGHTER_ID_COL, TIMESTAMP_COL])
+            window_twa_df = (window_twa_df
+                            .assign(**{TIMESTAMP_COL: timestamp_key})
+                            .reset_index()
+                            .set_index([FIREFIGHTER_ID_COL, TIMESTAMP_COL]))
             
             # Calculate gas limit gauge - percentage over / under the calculated TWA values
-            # (must compare gases in the same order as the dataframe columns)
-            limits_in_column_order = [float(time_window[GAS_LIMITS_PROPERTY][gas])
-                                        for gas in window_twa_df.columns if gas in self.SUPPORTED_GASES]
-            window_gauge_df = ((window_twa_df * 100 / limits_in_column_order)
-                               .round(0).astype(int)) # percentages are whole integers, we don't need floats
+            # (force gases and limits to have the same column order as each other before comparing)
+            gas_limits = [float(time_window[GAS_LIMITS_PROPERTY][gas]) for gas in self.SUPPORTED_GASES]
+            window_gauge_df = ((window_twa_df.loc[:, self.SUPPORTED_GASES] * 100 / gas_limits)
+                                .round(0)) # we don't need decimal precision for percentages
 
             # Update column titles - add the time period over which we're averaging, so we can merge dataframes later
             # without column name conflicts.
@@ -434,23 +464,31 @@ class GasExposureAnalytics(object):
         # Merge 'everything' for this time step - TWAs & Gauges from all time windows, latest sensors readings, ...
         everything_for_1_min_df = pd.concat(latest_device_data + calculations_for_all_windows, axis='columns')
 
-        # If there were no latest sensors readings to merge, then just set all the sensor cols to null
+        # If there were no latest sensors readings to merge, then just set all the sensor cols to null (np.nan)
         if not latest_device_data :
-            # Do this for all sensor columns, except the two keys
-            for col in list(set(longest_window_df.columns) - set([FIREFIGHTER_ID_COL, TIMESTAMP_COL])) :
-                everything_for_1_min_df[col] = None # todo: more "pandas-y" way of achieving this?
+            sensor_cols = list(set(longest_window_df.columns) - set([FIREFIGHTER_ID_COL, TIMESTAMP_COL]))
+            everything_for_1_min_df = everything_for_1_min_df.assign(**{col:np.NaN for col in sensor_cols})
 
         # Now that we have all the informatiom, we can determine the overall Firefighter status.
-        # Green/Red status boundaries are constant, yellow is configurable.
+        # Green/Red status boundaries are constant, yellow is configurable. If a sensor exceeded its range, then the
+        # Firefighter's status cannot be accurately determined (and the Gauge value will be np.inf)
         yellow_range_start = self.YELLOW_WARNING_PERCENT - 1
         everything_for_1_min_df[STATUS_LED_COL] = pd.cut(
             everything_for_1_min_df.filter(like=GAUGE_SUFFIX).max(axis='columns'),
-            bins=[GREEN_RANGE_START, yellow_range_start, RED_RANGE_START, RED_RANGE_END], include_lowest=True,
-            labels=[GREEN,YELLOW,RED])
-        
-        # Make the dataframe easier to print/read/debug
+            bins=[GREEN_RANGE_START, yellow_range_start, RED_RANGE_START, RED_RANGE_END, np.inf], include_lowest=True,
+            labels=[GREEN,YELLOW,RED,RANGE_EXCEEDED])
+
+        # Use the Prometeo constant for 'out-of-range sensor value' rather than np.inf from here on.
+        # (np.inf is useful for the math, but not for communicating / storing / displaying).
+        # Here we convert np.inf values in gas readings, TWAs and Gauges to a Prometeo constant.
+        gas_cols = everything_for_1_min_df.columns[everything_for_1_min_df.columns.str.contains("|".join(self.SUPPORTED_GASES))]
+        everything_for_1_min_df.loc[:, gas_cols] = (everything_for_1_min_df.loc[:, gas_cols]
+                                              .fillna(value=np.nan)
+                                              .replace(np.inf, RANGE_EXCEEDED))
+
+        # Make the dataframe easier to print/read/debug 
         col_headers_sorted_for_readability = sorted(everything_for_1_min_df.columns.to_list(), key=str.casefold)
-        everything_for_1_min_df = everything_for_1_min_df[col_headers_sorted_for_readability]
+        everything_for_1_min_df = everything_for_1_min_df.loc[:, col_headers_sorted_for_readability]
         
         return everything_for_1_min_df
 
@@ -478,7 +516,7 @@ class GasExposureAnalytics(object):
         # cost of the DB reads not being as efficient as they could be. (e.g. it would be more efficient to read 48
         # previously-calculated 10-min TWAs and average *those*, instead of averaging 480 raw 1-min sensor logs
         # (a word of caution - the average of an average is NOT automatically a valid average, care needs to be taken
-        # with demoninators...). This would be more efficient, but poorer quality, because the 'right now' limit
+        # with denominators...). This would be more efficient, but poorer quality, because the 'right now' limit
         # detection would be based on derived values containing assumptions about missing data). So for now, we
         # prioritise quality and resist "premature optimisation/efficiency" at least until the system is
         # sound / correct, after which optimisation tradeoffs can be prioritised as needed.

@@ -1,5 +1,4 @@
 __pycache__
 python3
 .env
-.vscode
-.settings
+.vscode/*

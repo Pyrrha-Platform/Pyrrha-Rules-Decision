@@ -2,7 +2,7 @@
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
-  name: prometeo-rulesdecision
+  name: prometeo-gateway
 spec:
   selector:
     istio: ingressgateway # use istio default controller
@@ -18,7 +18,7 @@ spec:
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
-  name: prometeo
+  name: prometeo-rulesdecision
 spec:
   hosts:
   - "*"
@@ -27,7 +27,7 @@ spec:
   http:
   - match:
     - uri:
-        exact: /decision
+        exact: /rulesdecision
     rewrite:
       uri: /
     route:
@@ -38,6 +38,8 @@ spec:
   - match:
     - uri:
         prefix: /coreDecision
+    - uri:
+        prefix: /get_status
     - uri:
         prefix: /swaggerui
     - uri:

@@ -1,5 +1,5 @@
 import os
-from flask import Flask, Response, jsonify
+from flask import Flask, Response, jsonify, abort
 from flask_restplus import Api, Resource, fields, reqparse
 from flask_cors import CORS, cross_origin
 import pandas as pd
@@ -9,6 +9,9 @@ import time
 import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
 import logging
+import sqlalchemy
+import sys
+from flask import request
 
 logger = logging.getLogger('core_decision_flask_app')
 logger.debug('creating an instance of devices')
@@ -22,56 +25,94 @@ CORS(app)
 
 print('starting application')
 
-api_prometeo_analytics = Api(app, version='1.0', title="Calculates Time-Weighted Average exposures and exposure-limit status 'gauges' for all firefighters for the last minute.", validate=False)
-ns = api_prometeo_analytics.namespace('GasExposureAnalytics', 'Calculates core Prometeo analytics')
-
-# The API does not require any input data. Once called, it will retrieve the latest data from the database.
-model_input = api_prometeo_analytics.model('Enter the data:', {'todo': fields.String(description='todo')})
-
 # On Bluemix, get the port number from the environment variable PORT
 # When running this app on the local machine, default to 8080
 port = int(os.getenv('PORT', 8080))
 
+# DB Connections and identifier constants
+SQLALCHEMY_DATABASE_URI = ("mysql+pymysql://"+os.getenv('MARIADB_USERNAME')
+                            +":"+os.getenv("MARIADB_PASSWORD")
+                            +"@"+os.getenv("MARIADB_HOST")
+                            +":"+str(os.getenv("MARIADB_PORT"))
+                            +"/prometeo")
+DB_ENGINE = sqlalchemy.MetaData(SQLALCHEMY_DATABASE_URI).bind
+ANALYTICS_TABLE = 'firefighter_status_analytics'
+FIREFIGHTER_ID_COL = 'firefighter_id'
+TIMESTAMP_COL = 'timestamp_mins'
+STATUS_LED_COL = 'analytics_status_LED'
+
 # We initialize the prometeo Analytics engine.
 perMinuteAnalytics = GasExposureAnalytics()
 
+
+
+# Calculates Time-Weighted Average exposures and exposure-limit status 'gauges' for all firefighters for the last minute.
 def callGasExposureAnalytics():
-    print(time.strftime("%A, %d. %B %Y %I:%M:%S %p"))
+    # print(time.strftime("%A, %d. %B %Y %I:%M:%S %p"))
     app.logger.info('info - running analytics')
     app.logger.debug('debug - running analytics')
-    # call the method on the class
-    perMinuteAnalytics.run_analytics()
 
+    # Run all of the core analytics for Prometeo for a given minute.
+    status_updates_df = perMinuteAnalytics.run_analytics()
+
+    # # TODO: Pass all status details and gauges on to the dashboard via an update API
+    # status_updates_json = None # Information available for the current minute (may be None)
+    # if status_updates_df is not None:
+    #     status_updates_json = (status_updates_df.reset_index(TIMESTAMP_COL) # index json by firefighter only
+    #                            .to_json(orient='index', date_format='iso')) # send json to dashboard 
+    #
+    # resp = requests.post(API_URL, json=status_updates_json)
+    # if resp.status_code != EXPECTED_RESPONSE_CODE:
+    #     app.logger.debug(f'ERROR: dashboard update API error code [{resp.status_code}]')
+    #     app.logger.debug(f'\t with JSON: {status_updates_json}')
+
+
+# Start up a scheduled job to run once per minute
+ANALYTICS_FREQUENCY_SECONDS = 60
 scheduler = BackgroundScheduler()
-scheduler.add_job(func=callGasExposureAnalytics, trigger="interval", seconds=3)
+scheduler.add_job(func=callGasExposureAnalytics, trigger="interval", seconds=ANALYTICS_FREQUENCY_SECONDS)
 scheduler.start()
-
 # Shut down the scheduler when exiting the app
 atexit.register(lambda: scheduler.shutdown())
 
 
-# The ENDPOINT
-@ns.route('/prometeo_analytics')
 
-class prometeo_analytics(Resource):
-    @api_prometeo_analytics.response(200, "Success", model_input)
-    @api_prometeo_analytics.expect(model_input)
-    def post(self):
-        # We prepare the arguments
-        parser = reqparse.RequestParser()
-        parser.add_argument('firefighter_ids', type=list)
-        args = parser.parse_args()
+# The ENDPOINTS
+@app.route('/get_status', methods=['GET'])
+def getStatus():
 
-        # Run all of the core analytics for Prometeo for a given minute.
-        limits_and_gauges_for_all_firefighters_df = perMinuteAnalytics.run_analytics()
+    try:
+        firefighter_id = request.args.get(FIREFIGHTER_ID_COL)
+        timestamp_mins = request.args.get(TIMESTAMP_COL)
 
-        # Return the limits and status gauges as json
-        if limits_and_gauges_for_all_firefighters_df is None :
-            return None
-        
-        return limits_and_gauges_for_all_firefighters_df.to_json(orient='index')
-        
-        
+        # Return 404 (Not Found) if the record IDs are invalid
+        if (firefighter_id is None) or (timestamp_mins is None):
+            app.logger.error('Missing parameters : '+FIREFIGHTER_ID_COL+' : '+str(firefighter_id)
+                            +', '+TIMESTAMP_COL+' : '+str(timestamp_mins))
+            abort(404)
+
+        # Read the requested Firefighter status
+        sql = ('SELECT '+FIREFIGHTER_ID_COL+', '+TIMESTAMP_COL+', '+STATUS_LED_COL+' FROM '+ANALYTICS_TABLE+
+            ' WHERE '+FIREFIGHTER_ID_COL+' = '+firefighter_id+' AND '+TIMESTAMP_COL+' = "'+timestamp_mins+'"')
+        firefighter_status_df = pd.read_sql_query(sql, DB_ENGINE)
+
+        # Return 404 (Not Found) if no record is found
+        if (firefighter_status_df is None) or (firefighter_status_df.empty):
+            app.logger.error('No status found for : ' + FIREFIGHTER_ID_COL + ' : ' + str(firefighter_id)
+                             + ', ' + TIMESTAMP_COL + ' : ' + str(timestamp_mins))
+            abort(404)
+        else:
+            firefighter_status_json = (firefighter_status_df
+                                    .rename(columns={STATUS_LED_COL: "status"}) # name as expected by client
+                                    .iloc[0,:] # convert dataframe to series (should never be more than 1 record)
+                                    .to_json(date_format='iso'))
+            return firefighter_status_json
+
+    except Exception as e:
+        # Return 500 (Internal Server Error) if there's any unexpected errors.
+        app.logger.error(f'Internal Server Error: {e}')
+        abort(500)
+
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=port, debug=False)  # deploy with debug=False
+    app.run(host='0.0.0.0', port=8080, debug=False)  # deploy with debug=False

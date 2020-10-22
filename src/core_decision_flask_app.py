@@ -58,8 +58,9 @@ def callGasExposureAnalytics():
     # # TODO: Pass all status details and gauges on to the dashboard via an update API
     # status_updates_json = None # Information available for the current minute (may be None)
     # if status_updates_df is not None:
-    #     status_updates_json = status_updates_df.to_json(orient='index')
-    
+    #     status_updates_json = (status_updates_df.reset_index(TIMESTAMP_COL) # index json by firefighter only
+    #                            .to_json(orient='index', date_format='iso')) # send json to dashboard 
+    #
     # resp = requests.post(API_URL, json=status_updates_json)
     # if resp.status_code != EXPECTED_RESPONSE_CODE:
     #     app.logger.debug(f'ERROR: dashboard update API error code [{resp.status_code}]')

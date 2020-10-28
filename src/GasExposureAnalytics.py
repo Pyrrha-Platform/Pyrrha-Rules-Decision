@@ -89,24 +89,33 @@ class GasExposureAnalytics(object):
             critical_config_issues += [message]
 
         # For each supported gas, check that limits PPM configuration is within that sensor's range.
-        # The limits should be no less than double the range of the sensor. To to illustrate why:
-        # Say a firefighter experiences [30mins at 1ppm. Then 30mins at 25ppm] and the 1hr limit is 10ppm.  Then one
-        # hour into the fire, this firefighter has experienced an average of 13ppm per hour, well over the 10ppm
+        # The limits must be less than the range of the sensor. For best reporting, the range should be at least
+        # two or more times the upper limit and a warning will be produced if this is not the case. To to illustrate
+        # why: Say a firefighter experiences [30mins at 1ppm. Then 30mins at 25ppm] and the 1hr limit is 10ppm.  Then
+        # one hour into the fire, this firefighter has experienced an average of 13ppm per hour, well over the 10ppm
         # limit - their status should be ‘Red’. However, if the range of the sensor is 0-10ppm, then the command center
-        # would actually see their status as *Green* (not Red or even Yellow) with a 5.5ppm per hour average - seemingly
-        # well under the limit. Why? Because the sensor would have provided [30mins at 1ppm. Then 30mins at 10ppm] which
-        # averages to 5.5ppm. For time-weighted average math to give reliable results, the sensor must have a much
-        # larger range than the limits - 2x being a minimum. If the limit is set at or near the sensor range, a
-        # firefighter's status would essentially never go red, even if they were well over the limit.
+        # would actually see their status as *Range Exceeded* (not Red, Yellow or Green), which is not very helpful.
+        # It's essentially saying "this firefighter's average exposure is unknown - it may be OK or it may not.
+        # Prometeo can't tell, because the sensors aren't sensitive enough for these conditions". For the firefighter
+        # to get an accurate report, this sensor would need to have a range of at least 25ppm (and likely more),
+        # so that exposure could be accurately measured and averaged to 13ppm.
+        # (Note: the sensor returns *Range Exceeded* to prevent incorrect PPM averages from being calculated.
+        #        e.g. in the above scenario, we do not want to incorrectly calculate an average of 5.5ppm (Green) from a
+        #        sensor showing 30mins at 1ppm and 30mins at 10ppm, the max the sensor can 'see').
         for gas in self.SUPPORTED_GASES :
             limits = [window[GAS_LIMITS_PROPERTY][gas] for window in self.WINDOWS_AND_LIMITS]
-            if ( (min(limits) < SENSOR_RANGE_PPM[gas]['min']) or ((max(limits)*2) > SENSOR_RANGE_PPM[gas]['max']) ) : 
+            if ( (min(limits) < SENSOR_RANGE_PPM[gas]['min']) or (max(limits) > SENSOR_RANGE_PPM[gas]['max']) ) : 
                 valid_config = False
-                message = ("%s : One or more of the '%s' configurations %s is incompatible with the range of the '%s' sensor (min: %s, max: %s)." +
-                           "\nPlease note that sensors must have a much larger range than the limits - 2x being a minimum.") \
+                message = ("%s : One or more of the '%s' configurations %s is incompatible with the range of the '%s' sensor (min: %s, max: %s).") \
                            % (config_filename, GAS_LIMITS_PROPERTY, limits, gas, SENSOR_RANGE_PPM[gas]['min'], SENSOR_RANGE_PPM[gas]['max'])
                 self.logger.critical(message)
                 critical_config_issues += [message]
+            if ((max(limits)*2) > SENSOR_RANGE_PPM[gas]['max']) : 
+                # This is valid, but not optimal. Produce a warning.
+                message = ("%s : One or more of the '%s' configurations %s is very close to the range of the '%s' sensor (min: %s, max: %s)." +
+                           "\nSensors shoud have a much larger range than the limits - e.g. 2x at a minimum .") \
+                           % (config_filename, GAS_LIMITS_PROPERTY, limits, gas, SENSOR_RANGE_PPM[gas]['min'], SENSOR_RANGE_PPM[gas]['max'])
+                self.logger.warning(message)
 
         # Check there's a valid definition of yellow - should be a percentage between 1 and 99
         if not ( (self.YELLOW_WARNING_PERCENT > 0) and (self.YELLOW_WARNING_PERCENT < 100) ) :
@@ -319,7 +328,7 @@ class GasExposureAnalytics(object):
 
         # It's essential to know when a sensor value can't be trusted - i.e. when it has exceeded its range (signalled
         # by the value '-1'). When this happens, we need to replace that sensor's value with something that
-        # both 1. identifies it as untrustworthy and 2. also causes calculated values like TWAs and Gauges to be
+        # both (A) identifies it as untrustworthy and (B) also causes calculated values like TWAs and Gauges to be
         # similarly identified. That value is infinity (np.inf). To to illustrate why: Say a firefighter experiences
         # [30mins at 1ppm. Then 30mins at 25ppm] and the 1 hour limit is 10ppm.  Then 1 hour into the fire, this
         # firefighter has experienced an average of 13ppm per hour, well over the 10ppm limit - their status should be

@@ -59,7 +59,7 @@ def callGasExposureAnalytics():
     # status_updates_json = None # Information available for the current minute (may be None)
     # if status_updates_df is not None:
     #     status_updates_json = (status_updates_df.reset_index(TIMESTAMP_COL) # index json by firefighter only
-    #                            .to_json(orient='index', date_format='iso')) # send json to dashboard 
+    #                            .to_json(orient='index', date_format='iso')) # send json to dashboard
     #
     # resp = requests.post(API_URL, json=status_updates_json)
     # if resp.status_code != EXPECTED_RESPONSE_CODE:
@@ -110,8 +110,12 @@ def getStatus():
 
     except Exception as e:
         # Return 500 (Internal Server Error) if there's any unexpected errors.
-        app.logger.error(f'Internal Server Error: {e}')
-        abort(500)
+        if e.code != "500":
+            app.logger.error(f'Error: {e}')
+            abort(e.code)
+        else:
+            app.logger.error(f'Internal Server Error: {e}')
+            abort(500)
 
 
 if __name__ == '__main__':

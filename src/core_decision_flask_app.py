@@ -13,8 +13,11 @@ import sqlalchemy
 import sys
 from flask import request
 
-logger = logging.getLogger('core_decision_flask_app')
-logger.debug('creating an instance of devices')
+# get logging level from the environment, default to INFO
+logging.basicConfig(level=os.environ.get("LOGLEVEL", logging.INFO))
+
+# Get a logger and keep its name in sync with this filename
+logger = logging.getLogger(os.path.basename(__file__))
 
 # load environment variables
 load_dotenv()
@@ -49,8 +52,7 @@ perMinuteAnalytics = GasExposureAnalytics()
 # Calculates Time-Weighted Average exposures and exposure-limit status 'gauges' for all firefighters for the last minute.
 def callGasExposureAnalytics():
     # print(time.strftime("%A, %d. %B %Y %I:%M:%S %p"))
-    app.logger.info('info - running analytics')
-    app.logger.debug('debug - running analytics')
+    logger.info('Running analytics')
 
     # Run all of the core analytics for Prometeo for a given minute.
     status_updates_df = perMinuteAnalytics.run_analytics()
@@ -63,8 +65,8 @@ def callGasExposureAnalytics():
     #
     # resp = requests.post(API_URL, json=status_updates_json)
     # if resp.status_code != EXPECTED_RESPONSE_CODE:
-    #     app.logger.debug(f'ERROR: dashboard update API error code [{resp.status_code}]')
-    #     app.logger.debug(f'\t with JSON: {status_updates_json}')
+    #     logger.error(f'ERROR: dashboard update API error code [{resp.status_code}]')
+    #     logger.debug(f'\t with JSON: {status_updates_json}')
 
 
 # Start up a scheduled job to run once per minute
@@ -87,7 +89,7 @@ def getStatus():
 
         # Return 404 (Not Found) if the record IDs are invalid
         if (firefighter_id is None) or (timestamp_mins is None):
-            app.logger.error('Missing parameters : '+FIREFIGHTER_ID_COL+' : '+str(firefighter_id)
+            logger.error('Missing parameters : '+FIREFIGHTER_ID_COL+' : '+str(firefighter_id)
                             +', '+TIMESTAMP_COL+' : '+str(timestamp_mins))
             abort(404)
 
@@ -98,7 +100,7 @@ def getStatus():
 
         # Return 404 (Not Found) if no record is found
         if (firefighter_status_df is None) or (firefighter_status_df.empty):
-            app.logger.error('No status found for : ' + FIREFIGHTER_ID_COL + ' : ' + str(firefighter_id)
+            logger.error('No status found for : ' + FIREFIGHTER_ID_COL + ' : ' + str(firefighter_id)
                              + ', ' + TIMESTAMP_COL + ' : ' + str(timestamp_mins))
             abort(404)
         else:
@@ -110,7 +112,7 @@ def getStatus():
 
     except Exception as e:
         # Return 500 (Internal Server Error) if there's any unexpected errors.
-        app.logger.error(f'Internal Server Error: {e}')
+        logger.error(f'Internal Server Error: {e}')
         abort(500)
 
 

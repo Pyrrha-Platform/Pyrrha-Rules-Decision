@@ -26,7 +26,7 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-print('starting application')
+logger.info('starting application')
 
 # On Bluemix, get the port number from the environment variable PORT
 # When running this app on the local machine, default to 8080
@@ -51,7 +51,6 @@ perMinuteAnalytics = GasExposureAnalytics()
 
 # Calculates Time-Weighted Average exposures and exposure-limit status 'gauges' for all firefighters for the last minute.
 def callGasExposureAnalytics():
-    # print(time.strftime("%A, %d. %B %Y %I:%M:%S %p"))
     logger.info('Running analytics')
 
     # Run all of the core analytics for Prometeo for a given minute.

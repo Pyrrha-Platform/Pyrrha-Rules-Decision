@@ -12,6 +12,7 @@ import logging
 import sqlalchemy
 import sys
 from flask import request
+from werkzeug.exceptions import HTTPException
 
 # get logging level from the environment, default to INFO
 logging.basicConfig(level=os.environ.get("LOGLEVEL", logging.INFO))
@@ -108,10 +109,12 @@ def getStatus():
                                     .iloc[0,:] # convert dataframe to series (should never be more than 1 record)
                                     .to_json(date_format='iso'))
             return firefighter_status_json
-
+    except HTTPException as e:
+        app.logger.error(f'{e}')
+        raise e
     except Exception as e:
         # Return 500 (Internal Server Error) if there's any unexpected errors.
-        logger.error(f'Internal Server Error: {e}')
+        app.logger.error(f'Internal Server Error: {e}')
         abort(500)
 
 

@@ -110,11 +110,11 @@ def getStatus():
                                     .to_json(date_format='iso'))
             return firefighter_status_json
     except HTTPException as e:
-        app.logger.error(f'{e}')
+        logger.error(f'{e}')
         raise e
     except Exception as e:
         # Return 500 (Internal Server Error) if there's any unexpected errors.
-        app.logger.error(f'Internal Server Error: {e}')
+        logger.error(f'Internal Server Error: {e}')
         abort(500)
 
 

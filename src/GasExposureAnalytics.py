@@ -161,7 +161,8 @@ class GasExposureAnalytics(object):
     #                     database and the analytics table schema is static, not dynamic.
     def __init__(self, list_of_csv_files=None, config_filename=DEFAULT_CONFIG_FILENAME):
 
-        self.logger = logging.getLogger('GasExposureAnalytics')
+        # Get a logger and keep its name in sync with this filename
+        self.logger = logging.getLogger(os.path.basename(__file__))
 
         # Get configuration
         with open(os.path.join(os.path.dirname(__file__), config_filename)) as file:
@@ -503,17 +504,29 @@ class GasExposureAnalytics(object):
 
 
     # This is 'main' - runs all of the core analytics for Prometeo in a given minute.
-    # time : The datetime for which to calculate sensor analytics. Defaults to 'now'.
+    # current_utc_timestamp : The UTC datetime for which to calculate sensor analytics. Defaults to 'now' (UTC).
     # commit : Utility flag for unit testing - defaults to committing analytic results to
     #          the database. Setting commit=False prevents unit tests from writing to the database.
-    def run_analytics (self, current_timestamp=pd.Timestamp.now(), commit=True) :
+    def run_analytics (self, current_utc_timestamp=None, commit=True) :
+
+        # Get the desired timeframe for the analytics run and standardise it to UTC.
+        if current_utc_timestamp is None:
+            # In normal usage, we run the analytics against the current ('now') time.
+            # (and UTC is the prometeo standard format for storing & communicating timestamps)
+            current_utc_timestamp = pd.Timestamp.utcnow()
+        else:
+            # When testing, we usually run against a specific (known) timestamp
+            # (wrapping pd.Timestamp allows us to test with both Pandas and Python-native dates)
+            current_utc_timestamp = pd.Timestamp(current_utc_timestamp)
+        # Drop the '+00:00' suffix from the standard UTC time (because our mariadb DB is not time-zone aware)
+        if current_utc_timestamp.tzinfo is not None: current_utc_timestamp = current_utc_timestamp.tz_convert(None)
 
         # Very important: All sensor records are keyed on the FF id and the minute in which they arrive. So if 'now'
         # is 08:10:11 (11s past 8.10am) then there's another 49s to go before we can expect all the similarly-keyed
         # (08:10:00) sensor records to have arrived. Hence the actual 'latest' data that we're interested in running
         # analytics for is "any data keyed 08:09:00" i.e. (now.floor() minus 1 minute) - that 1 minute is the arrival
         # buffer for the data.
-        timestamp_key = current_timestamp.floor(freq='min') - pd.Timedelta(minutes = 1)
+        timestamp_key = current_utc_timestamp.floor(freq='min') - pd.Timedelta(minutes = 1)
 
         message = ("Running Prometeo Analytics for minute key '%s'" % (timestamp_key.isoformat()))
         if not self._from_db : message += " (local CSV file mode)"

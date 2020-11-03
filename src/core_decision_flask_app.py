@@ -27,11 +27,7 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-<<<<<<< HEAD
-logger.info('Starting application')
-=======
 logger.info('starting application')
->>>>>>> fd8ca348e1551bf815a595d58cfeec78bf1a7df8
 
 # On Bluemix, get the port number from the environment variable PORT
 # When running this app on the local machine, default to 8080
@@ -114,11 +110,11 @@ def getStatus():
                                     .to_json(date_format='iso'))
             return firefighter_status_json
     except HTTPException as e:
-        app.logger.error(f'{e}')
+        logger.error(f'{e}')
         raise e
     except Exception as e:
         # Return 500 (Internal Server Error) if there's any unexpected errors.
-        app.logger.error(f'Internal Server Error: {e}')
+        logger.error(f'Internal Server Error: {e}')
         abort(500)
 
 

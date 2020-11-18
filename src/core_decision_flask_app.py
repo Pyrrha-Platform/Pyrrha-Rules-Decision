@@ -95,7 +95,7 @@ def getStatus():
 
         # Read the requested Firefighter status
         sql = ('SELECT '+FIREFIGHTER_ID_COL+', '+TIMESTAMP_COL+', '+STATUS_LED_COL+' FROM '+ANALYTICS_TABLE+
-            ' WHERE '+FIREFIGHTER_ID_COL+' = '+firefighter_id+' AND '+TIMESTAMP_COL+' = "'+timestamp_mins+'"')
+            ' WHERE '+FIREFIGHTER_ID_COL+' = "'+firefighter_id+'" AND '+TIMESTAMP_COL+' = "'+timestamp_mins+'"')
         firefighter_status_df = pd.read_sql_query(sql, DB_ENGINE)
 
         # Return 404 (Not Found) if no record is found

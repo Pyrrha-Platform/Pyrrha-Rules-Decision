@@ -2,6 +2,7 @@ import os
 from flask import Flask, Response, jsonify, abort
 from flask_restplus import Api, Resource, fields, reqparse
 from flask_cors import CORS, cross_origin
+import json
 import pandas as pd
 from GasExposureAnalytics import GasExposureAnalytics
 from dotenv import load_dotenv
@@ -154,6 +155,30 @@ def getStatusDetails():
         # Return 500 (Internal Server Error) if there's any unexpected errors.
         logger.error(f'Internal Server Error: {e}')
         abort(500)
+
+@app.route('/get_configuration', methods=['GET'])
+def getConfiguration():
+
+    try:
+        configuration = perMinuteAnalytics.CONFIGURATION
+        # Return 404 (Not Found) if the configuration doesn't exist
+        if (configuration is None):
+            logger.error('getConfiguration: No configuration found.')
+            abort(404)
+        else:
+            configuration_json = json.dumps(configuration)
+            return configuration_json
+
+    # Log and propagate HTTP exceptions.
+    except HTTPException as e:
+        logger.error(f'{e}')
+        raise e
+
+    except Exception as e:
+        # Return 500 (Internal Server Error) if there's any unexpected errors.
+        logger.error(f'Internal Server Error: {e}')
+        abort(500)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)  # deploy with debug=False

@@ -43,6 +43,8 @@ spec:
     - uri:
         prefix: /get_status_details
     - uri:
+        prefix: /get_configuration
+    - uri:
         prefix: /swaggerui
     - uri:
         prefix: /swagger.json

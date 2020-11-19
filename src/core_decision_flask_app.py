@@ -117,6 +117,43 @@ def getStatus():
         logger.error(f'Internal Server Error: {e}')
         abort(500)
 
+# The ENDPOINTS
+@app.route('/get_status_details', methods=['GET'])
+def getStatusDetails():
+
+    try:
+        firefighter_id = request.args.get(FIREFIGHTER_ID_COL)
+        timestamp_mins = request.args.get(TIMESTAMP_COL)
+
+        # Return 404 (Not Found) if the record IDs are invalid
+        if (firefighter_id is None) or (timestamp_mins is None):
+            logger.error('Missing parameters : '+FIREFIGHTER_ID_COL+' : '+str(firefighter_id)
+                            +', '+TIMESTAMP_COL+' : '+str(timestamp_mins))
+            abort(404)
+
+        # Read the requested Firefighter status
+        sql = ('SELECT * FROM '+ANALYTICS_TABLE+
+            ' WHERE '+FIREFIGHTER_ID_COL+' = "'+firefighter_id+'" AND '+TIMESTAMP_COL+' = "'+timestamp_mins+'"')
+        firefighter_status_df = pd.read_sql_query(sql, DB_ENGINE)
+
+        # Return 404 (Not Found) if no record is found
+        if (firefighter_status_df is None) or (firefighter_status_df.empty):
+            logger.error('No status found for : ' + FIREFIGHTER_ID_COL + ' : ' + str(firefighter_id)
+                             + ', ' + TIMESTAMP_COL + ' : ' + str(timestamp_mins))
+            abort(404)
+        else:
+            firefighter_status_json = (firefighter_status_df
+                                    .rename(columns={STATUS_LED_COL: "status"}) # name as expected by client
+                                    .iloc[0,:] # convert dataframe to series (should never be more than 1 record)
+                                    .to_json(date_format='iso'))
+            return firefighter_status_json
+    except HTTPException as e:
+        logger.error(f'{e}')
+        raise e
+    except Exception as e:
+        # Return 500 (Internal Server Error) if there's any unexpected errors.
+        logger.error(f'Internal Server Error: {e}')
+        abort(500)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)  # deploy with debug=False

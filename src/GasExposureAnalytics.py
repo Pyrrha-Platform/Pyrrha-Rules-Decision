@@ -166,32 +166,32 @@ class GasExposureAnalytics(object):
 
         # Get configuration
         with open(os.path.join(os.path.dirname(__file__), config_filename)) as file:
-            configuration = json.load(file)
+            self.CONFIGURATION = json.load(file)
             file.close()
 
         # WINDOWS_AND_LIMITS   : A list detailing every supported time-window over which to calcuate the time-weighted
         #   average (label, number of minutes and gas limit gauges for each window) - e.g. from NIOSH, ACGIH, EU-OSHA.
-        self.WINDOWS_AND_LIMITS = configuration[WINDOWS_AND_LIMITS_PROPERTY]
+        self.WINDOWS_AND_LIMITS = self.CONFIGURATION[WINDOWS_AND_LIMITS_PROPERTY]
         # SUPPORTED_GASES   : The list of gases that Prometeo devices currently have sensors for.
         #   To automatically enable analytics for new gases, simply add them to this list.
-        self.SUPPORTED_GASES = configuration[SUPPORTED_GASES_PROPERTY]
+        self.SUPPORTED_GASES = self.CONFIGURATION[SUPPORTED_GASES_PROPERTY]
         # YELLOW_WARNING_PERCENT : yellow is a configurable percentage - the status LED will go yellow when any gas 
         #   reaches that percentage (e.g. 80%) of the exposure limit for any time-window.
-        self.YELLOW_WARNING_PERCENT = configuration[YELLOW_WARNING_PERCENT_PROPERTY]
+        self.YELLOW_WARNING_PERCENT = self.CONFIGURATION[YELLOW_WARNING_PERCENT_PROPERTY]
         # SAFE_ROUNDING_FACTORS : Why round? Because each gas has a number of decimal places that are meaningful and
         #   beyond which extra digits are trivial. Rounding protects unit tests from brittleness due to these trivial 
         #   differences in computations. If a value changes by more than 1/10th of the smallest unit of the
         #   most-sensitive gas, then we want to know (e.g. fail a test), any less than that and the change is negligible.
         #   e.g.: At time of writing, Carbon Monoxide had a range of 0 to 420ppm and Nitrogen Dioxide, had a range
         #   of 0.1 to 10ppm. So the safe rounding factors for these gases would be 1 decimal place for CO and 2 for NO2.
-        self.SAFE_ROUNDING_FACTORS = configuration[SAFE_ROUNDING_FACTORS_PROPERTY]
+        self.SAFE_ROUNDING_FACTORS = self.CONFIGURATION[SAFE_ROUNDING_FACTORS_PROPERTY]
 
         # AUTOFILL_MINS: A buffer of N mins (e.g. 10 mins) during which the system will assume any missing data just
         #                means a device is disconnected and the data is temporarily delayed. It will 'treat' the
         #                missing data (e.g. by substituting an average). After this number of minutes of missing
         #                sensor data, the system will stop estimating and assume the firefighter has powered  off their
         #                device and left the event.
-        self.AUTOFILL_MINS = configuration[AUTOFILL_MINS_PROPERTY]
+        self.AUTOFILL_MINS = self.CONFIGURATION[AUTOFILL_MINS_PROPERTY]
 
         # Cache of 'earliest and latest observed data points for each firefighter'. Necessary for the AUTOFILL_MINS
         # functionality.

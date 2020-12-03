@@ -1,3 +1,3 @@
 # Rules Decision
 
-TBD
+TBDhttps://callforcode.org/slack

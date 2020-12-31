@@ -1,12 +1,21 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+image:
+  repository: webapp
+  tag: latest
+  pullSecret: regsecret
+  pullPolicy: IfNotPresent
+  # for local development against Minikube registry
+  #pullPolicy: Never  
 rulesdecision:
   name: rulesdecision
   version: v1
   replicaCount: 1
+  namespace: staging
   image:
     repository: uk.icr.io/prometeo-cluster/rulesdecision
-    pullPolicy: Always
+    pullSecret: regsecret
+    pullPolicy: IfNotPresent
   livenessProbe:
     initialDelaySeconds: 30
     periodSeconds: 10

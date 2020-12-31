@@ -1,7 +1,7 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 image:
-  repository: webapp
+  repository: uk.icr.io/prometeo-cluster/rulesdecision
   tag: latest
   pullSecret: regsecret
   pullPolicy: IfNotPresent
@@ -23,7 +23,7 @@ rulesdecision:
     servicePort: 8080
 istio:
   virtualservices:
-    enabled: true
+    enabled: false
   gateway:
     enabled: false
 imagepullsecrets:

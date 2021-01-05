@@ -54,6 +54,27 @@ spec:
       containers:
       - name: {{  .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        env:
+        - name: MARIADB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: rulesdecision-secret
+              key: MARIADB_HOST
+        - name: MARIADB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: rulesdecision-secret
+              key: MARIADB_PORT
+        - name: MARIADB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: rulesdecision-secret
+              key: MARIADB_USERNAME
+        - name: MARIADB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rulesdecision-secret
+              key: MARIADB_PASSWORD
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
         - containerPort: {{ .Values.rulesdecision.service.servicePort}}

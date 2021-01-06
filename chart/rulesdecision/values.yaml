@@ -1,4 +1,4 @@
-# all image properties get overwritten by the IKS toolchain
+# the image properties get overwritten by the IKS toolchain
 image:
   repository: uk.icr.io/prometeo-cluster/rulesdecision
   tag: latest

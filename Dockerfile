@@ -9,7 +9,7 @@ COPY requirements.txt /opt/microservices/
 RUN pip install --upgrade pip \
   && pip install --upgrade pipenv\
   && apt-get update \
-  && apt-get install --no-install-recommends -y python=3.7 \
+  && apt-get install --no-install-recommends -y python \
   && apt-get install -y build-essential \
   && apt-get install -y libmariadb3 libmariadb-dev \
   && apt-get clean \

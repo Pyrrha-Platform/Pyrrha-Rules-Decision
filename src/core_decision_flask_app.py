@@ -88,6 +88,8 @@ def getStatus():
         firefighter_id = request.args.get(FIREFIGHTER_ID_COL)
         timestamp_mins = request.args.get(TIMESTAMP_COL)
 
+        print('entering /get_status')
+
         # Return 404 (Not Found) if the record IDs are invalid
         if (firefighter_id is None) or (timestamp_mins is None):
             logger.error('Missing parameters : '+FIREFIGHTER_ID_COL+' : '+str(firefighter_id)
@@ -97,6 +99,9 @@ def getStatus():
         # Read the requested Firefighter status
         sql = ('SELECT '+FIREFIGHTER_ID_COL+', '+TIMESTAMP_COL+', '+STATUS_LED_COL+' FROM '+ANALYTICS_TABLE+
             ' WHERE '+FIREFIGHTER_ID_COL+' = "'+firefighter_id+'" AND '+TIMESTAMP_COL+' = "'+timestamp_mins+'"')
+
+        logger.info('entering GET status')
+        logger.info(sql)
         firefighter_status_df = pd.read_sql_query(sql, DB_ENGINE)
 
         # Return 404 (Not Found) if no record is found

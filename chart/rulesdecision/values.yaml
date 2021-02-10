@@ -11,7 +11,7 @@ rulesdecision:
   name: rulesdecision
   version: v1
   replicaCount: 1
-  namespace: staging
+  namespace: default
   image:
     repository: uk.icr.io/prometeo-cluster/rulesdecision
     pullSecret: regsecret
@@ -23,7 +23,7 @@ rulesdecision:
     servicePort: 8080
 istio:
   virtualservices:
-    enabled: false
+    enabled: true
   gateway:
     enabled: false
 imagepullsecrets:

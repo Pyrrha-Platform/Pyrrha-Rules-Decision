@@ -23,5 +23,6 @@
     },
     "peacock.color": "#d79522",
     "python.pythonPath": "/Users/upkar/Documents/upkar-code/prometeo-code-response/Prometeo-Rules-Decision/python3/bin/python3",
-    "peacock.remoteColor": "#e21850"
+    "peacock.remoteColor": "#e21850",
+    "python.formatting.provider": "black"
 }

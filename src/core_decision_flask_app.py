@@ -79,11 +79,14 @@ scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
 
+@app.route('/health', methods=['GET'])
+def health():
+    return "healthy"
 
 # The ENDPOINTS
 @app.route('/get_status', methods=['GET'])
 def getStatus():
-
+ 
     try:
         firefighter_id = request.args.get(FIREFIGHTER_ID_COL)
         timestamp_mins = request.args.get(TIMESTAMP_COL)
@@ -98,6 +101,9 @@ def getStatus():
         sql = ('SELECT '+FIREFIGHTER_ID_COL+', '+TIMESTAMP_COL+', '+STATUS_LED_COL+' FROM '+ANALYTICS_TABLE+
             ' WHERE '+FIREFIGHTER_ID_COL+' = "'+firefighter_id+'" AND '+TIMESTAMP_COL+' = "'+timestamp_mins+'"')
         firefighter_status_df = pd.read_sql_query(sql, DB_ENGINE)
+
+        logger.info('/get_status called!')
+        logger.info(sql)
 
         # Return 404 (Not Found) if no record is found
         if (firefighter_status_df is None) or (firefighter_status_df.empty):

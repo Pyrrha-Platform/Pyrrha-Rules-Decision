@@ -1,0 +1,15 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+ name: community-ingress-resource
+ annotations:
+    ingress.bluemix.net/rewrite-path: "serviceName=rulesdecision rewrite=/"
+spec:
+ rules:
+ - host: prometeo-kubernetes-8877e2c915ebdcc9b5067e5cb2150b3c-0000.eu-gb.containers.appdomain.cloud
+   http:
+     paths:
+     - path: /rulesdecision/
+       backend:
+         serviceName: rulesdecision
+         servicePort: 8080

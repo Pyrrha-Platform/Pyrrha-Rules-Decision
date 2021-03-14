@@ -1,89 +1,56 @@
-##################################################################################################
-# Rules Decision services
-##################################################################################################
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{  .Chart.Name }}
-  labels:
-    app.kubernetes.io/managed-by: helm
-    meta.helm.sh/release-name: {{  .Chart.Name }}
-    meta.helm.sh/release-namespace: {{.Values.rulesdecision.namespace}}
-    app: {{  .Chart.Name }}
-    service: {{  .Chart.Name }}
-spec:
-  ports:
-  - port: {{ .Values.rulesdecision.service.servicePort }}
-    name: http
-  selector:
-    app: {{  .Chart.Name }}
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{  .Chart.Name }}
-  labels:
-    app.kubernetes.io/managed-by: helm
-    meta.helm.sh/release-name: {{  .Chart.Name }}
-    meta.helm.sh/release-namespace: {{.Values.rulesdecision.namespace}}
-    account: {{  .Chart.Name }}
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{  .Chart.Name }}-{{  .Values.rulesdecision.version }}
+  name: {{ template "fullname" . }}
   labels:
-    app.kubernetes.io/managed-by: helm
-    meta.helm.sh/release-name: {{  .Chart.Name }}
-    meta.helm.sh/release-namespace: {{.Values.rulesdecision.namespace}}
-    app: {{  .Chart.Name }}
-    version: {{  .Values.rulesdecision.version }}
+    app: {{ template "name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
 spec:
-  replicas: {{  .Values.rulesdecision.replicaCount }}
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{  .Chart.Name }}
-      version: {{  .Values.rulesdecision.version }}
+      app: {{ template "name" . }}
+      release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{  .Chart.Name }}
-        version: {{  .Values.rulesdecision.version }}
+        app: {{ template "name" . }}
+        release: {{ .Release.Name }}
     spec:
-      serviceAccountName: {{  .Chart.Name }}
-      containers:
-      - name: {{  .Chart.Name }}
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        env:
-        - name: MARIADB_HOST
-          valueFrom:
-            secretKeyRef:
-              name: rulesdecision-secret
-              key: MARIADB_HOST
-        - name: MARIADB_PORT
-          valueFrom:
-            secretKeyRef:
-              name: rulesdecision-secret
-              key: MARIADB_PORT
-        - name: MARIADB_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: rulesdecision-secret
-              key: MARIADB_USERNAME
-        - name: MARIADB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: rulesdecision-secret
-              key: MARIADB_PASSWORD
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        ports:
-        - containerPort: {{ .Values.rulesdecision.service.servicePort}}
-        volumeMounts:
-        - name: tmp
-          mountPath: /tmp
       imagePullSecrets:
         - name: {{ .Values.image.pullSecret }}
-      volumes:
-      - name: tmp
-        emptyDir: {}
----
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.internalPort }}
+          env:
+            - name: MARIADB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: rulesdecision-secret
+                  key: MARIADB_HOST
+            - name: MARIADB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: rulesdecision-secret
+                  key: MARIADB_PORT
+            - name: MARIADB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rulesdecision-secret
+                  key: MARIADB_USERNAME
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rulesdecision-secret
+                  key: MARIADB_PASSWORD
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+    {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+    {{- end }}

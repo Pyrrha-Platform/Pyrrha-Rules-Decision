@@ -5,7 +5,7 @@ ENV PYTHONUNBUFFERED=1
 COPY src/* /opt/microservices/
 COPY requirements.txt /opt/microservices/
 
-# hadolint ignore=DL3013
+# hadolint ignore=DL3008,DL3013,DL3015
 RUN pip install --upgrade pip \
   && pip install --upgrade pipenv\
   && apt-get update \

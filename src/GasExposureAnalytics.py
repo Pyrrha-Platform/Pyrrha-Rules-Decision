@@ -598,6 +598,10 @@ class GasExposureAnalytics(object):
             index = self._sensor_log_from_csv_df.sort_index().loc[date:date].index
             start_time = index.min()
             end_time = index.max()
+        
+        # If there's no data for the requested day, return None
+        if (start_time is None) or (end_time is None) :
+            return None
 
         # Adjust the end - should allow for the longest time-weighted averaging window to be fully-reported.
         longest_window_in_mins = max([window['mins'] for window in self.WINDOWS_AND_LIMITS])

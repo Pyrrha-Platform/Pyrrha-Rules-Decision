@@ -197,7 +197,7 @@ def batch_run_analytics_by_date():
             logger.error('No analytic results were produced for : ' + DATE_PARAMETER + ' : ' + date_str)
             abort(404)
         else:
-            return
+            return "batch run complete"
             
     except HTTPException as e:
         logger.error(f'{e}')

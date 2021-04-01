@@ -507,9 +507,10 @@ class GasExposureAnalytics(object):
     # current_utc_timestamp : The UTC datetime for which to calculate sensor analytics. Defaults to 'now' (UTC).
     # commit : Utility flag for unit testing - defaults to committing analytic results to
     #          the database. Setting commit=False prevents unit tests from writing to the database.
+    # overwrite : Enables batch execution to overwrite any existing result in the time period being processed.
     # log_mins : How often to log an informational message stating which minute is currently being processed. Defaults
     #            to every '1' min. Can be set to (eg) every '15' mins when running batches, so the logs are readable.
-    def run_analytics (self, current_utc_timestamp=None, commit=True, log_mins=1) :
+    def run_analytics (self, current_utc_timestamp=None, commit=True, overwrite=False, log_mins=1) :
 
         # Get the desired timeframe for the analytics run and standardise it to UTC.
         if current_utc_timestamp is None:
@@ -554,25 +555,42 @@ class GasExposureAnalytics(object):
         # Work out all the time-weighted averages and corresponding limit gauges for all firefighters, all limits and all gases.
         analytics_df = self._calculate_TWA_and_gauge_for_all_firefighters(sensor_log_df, ff_time_spans_df, timestamp_key)
 
+        # Write the analytic results to the DB
         if commit :
+            
+            # Remove any pre-existing analytic results before writing new ones.
+            if overwrite :
+                with self._db_engine.connect() as connection: # 'with' auto-closes the connection
+                    connection.execute("DELETE FROM " + ANALYTICS_TABLE + " where " + TIMESTAMP_COL + " = '" + timestamp_key.isoformat() + "'")
+
             analytics_df.to_sql(ANALYTICS_TABLE, self._db_engine, if_exists='append', dtype={FIREFIGHTER_ID_COL:FIREFIGHTER_ID_COL_TYPE})
 
         return analytics_df
 
 
-    # This is the batched version of 'main' - given a minute-by-minute playback schedule, it runs all of the core
-    # analytics for Prometeo for each of those minutes.
-    # playback_schedule : A list of UTC datetimes for which to calculate sensor analytics.
-    # commit : Utility flag for unit testing - defaults to committing analytic results to
-    #          the database. Setting commit=False prevents unit tests from writing to the database.
-    def batch_run_analytics (self, playback_schedule=[], commit=True) :
+    # This is the batched version of 'main' - given a start time and and end time, it generates a minute-by-minute
+    # playback schedule and runs all of the core analytics for Prometeo for each of those minutes.
+    # start_time : The date & time at which to start calculating sensor analytics (UTC datetime).
+    # end_time  : The date & time at which to stop calculating sensor analytics (UTC datetime).
+    # commit : Utility flag for unit testing. Defaults to committing analytic results to the database for production.
+    #          Setting commit=False prevents unit tests from writing to the database.
+    def batch_run_analytics (self, start_time=None, end_time=None, commit=True) :
+
+        # Log that a batch procss is starting & what it will look at and what it will over-write.
+        message = (("Running Prometeo Analytics over batch period '%s' - '%s'.  "
+            + "*** Any existing analytic results in this period will be overwritten. ***")
+            % (start_time.isoformat(), end_time.isoformat()))
+        if not self._from_db : message += " (local CSV file mode)"
+        self.logger.info(message)
+
+        # Get a minute-by-minute playback schedule over which to run the analytics
+        playback_schedule = pd.date_range(start=start_time.floor('min'), end=end_time.floor('min'), freq='min').to_list()
 
         # Calculate exposure for every minute in the playback schedule
         all_results = []
         for time in playback_schedule :
-
-            # Calculate exposure
-            result = self.run_analytics(time, commit, log_mins=15) # only log every 15 mins, so logs remain readable
+            # Calculate exposure, overwriting any pre-existing analytic results before new ones are written.
+            result = self.run_analytics(time, commit, overwrite=True, log_mins=15) # only log every 15 mins, so logs remain readable
             if result is not None :
                 all_results.append(result)
 
@@ -603,19 +621,11 @@ class GasExposureAnalytics(object):
         if (start_time is None) or (end_time is None) :
             return None
 
-        # Adjust the end - should allow for the longest time-weighted averaging window to be fully-reported.
+        # Adjust the end - allow time for the longest time-weighted averaging window to be fully-reported.
         longest_window_in_mins = max([window['mins'] for window in self.WINDOWS_AND_LIMITS])
         end_time = end_time + pd.Timedelta(minutes=longest_window_in_mins)
 
-        # Log progress regularly (e.g. by default, log_mins is 'every 1 min', but could be set to 'every 15 mins').
-        message = ("Running Prometeo Analytics over batch period '%s' - '%s'" % (start_time.isoformat(), end_time.isoformat()))
-        if not self._from_db : message += " (local CSV file mode)"
-        self.logger.info(message)
-
-        # Get a minute-by-minute playback schedule over which to run the analytics
-        playback_schedule = pd.date_range(start=start_time.floor('min'), end=end_time.floor('min'), freq='min').to_list()
-
         # Calculate exposure for every minute in the playback schedule
-        all_results_df = self.batch_run_analytics(playback_schedule, commit)
+        all_results_df = self.batch_run_analytics(start_time, end_time, commit)
 
         return all_results_df

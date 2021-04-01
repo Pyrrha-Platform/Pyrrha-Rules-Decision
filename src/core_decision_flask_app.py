@@ -7,6 +7,7 @@ import pandas as pd
 from GasExposureAnalytics import GasExposureAnalytics
 from dotenv import load_dotenv
 import time
+from datetime import date
 import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
 import logging
@@ -45,6 +46,7 @@ ANALYTICS_TABLE = 'firefighter_status_analytics'
 FIREFIGHTER_ID_COL = 'firefighter_id'
 TIMESTAMP_COL = 'timestamp_mins'
 STATUS_LED_COL = 'analytics_status_LED'
+DATE_PARAMETER = 'date'
 
 # We initialize the prometeo Analytics engine.
 perMinuteAnalytics = GasExposureAnalytics()
@@ -166,6 +168,45 @@ def getStatusDetails():
         # Return 500 (Internal Server Error) if there's any unexpected errors.
         logger.error(f'Internal Server Error: {e}')
         abort(500)
+
+
+@app.route('/batch_run_analytics_by_date', methods=['GET'])
+def batch_run_analytics_by_date():
+
+    try:
+        date_str = request.args.get(DATE_PARAMETER)
+
+        # Return 400 (Bad Request) if the supplied date is invalid.
+        if (date_str is None) :
+            logger.error('Missing parameters : '+DATE_PARAMETER+' : '+date_str)
+            abort(400)
+        else :
+            try :
+                date.fromisoformat(date_str)
+            except ValueError as e:
+                logger.error("Invalid '"+DATE_PARAMETER+"' parameter. '"+date_str+"' should be an ISO-formatted YYYY-MM-DD date string (like 2000-12-31)")
+                abort(400)
+
+
+        # Calculate exposure for every minute in the selected day
+        batchAnalytics = GasExposureAnalytics()
+        batch_results_df = batchAnalytics.batch_run_analytics_by_date(date_str)
+
+        # Return 404 (Not Found) if no record is found
+        if (batch_results_df is None) or (batch_results_df.empty):
+            logger.error('No analytic results were produced for : ' + DATE_PARAMETER + ' : ' + date_str)
+            abort(404)
+        else:
+            return "batch run complete"
+            
+    except HTTPException as e:
+        logger.error(f'{e}')
+        raise e
+    except Exception as e:
+        # Return 500 (Internal Server Error) if there's any unexpected errors.
+        logger.error(f'Internal Server Error: {e}')
+        abort(500)
+
 
 @app.route('/get_configuration', methods=['GET'])
 def getConfiguration():

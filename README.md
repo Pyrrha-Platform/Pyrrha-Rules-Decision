@@ -47,11 +47,15 @@ You can run this solution locally in docker as follows
    ```
         source python3/bin/activate
    ```
-5. Run the application
+5. Test the application
+   ```
+        python manage.py test
+   ```
+6. Run the application
    ```
         python src/core_decision_flask_app.py 8080
    ```
-6. You should see the following output
+7. You should see the following output
    ```
         starting application
         * Serving Flask app "core_decision_flask_app" (lazy loading)

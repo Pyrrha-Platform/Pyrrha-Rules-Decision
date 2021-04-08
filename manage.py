@@ -1,8 +1,12 @@
 import os, sys, argparse, subprocess, signal
 
+# Tip from:
+# https://github.com/dpgaspar/Flask-AppBuilder/issues/733#issuecomment-379009480
+PORT = int(os.environ.get("PORT", 3000))
+
 # Project defaults
-FLASK_APP = 'server/__init__.py'
-DEFAULT_IP = '0.0.0.0:3000'
+FLASK_APP = 'src/__init__.py'
+DEFAULT_IP = '0.0.0.0:' + str(PORT)
 
 class Command:
 	def __init__(self, name, descr, runcmd, env={}):
@@ -53,7 +57,7 @@ cm.add(Command(
 cm.add(Command(
 	"start",
 	"runs server with gunicorn in a production setting",
-	lambda c: 'gunicorn -b {0}:{1} server:app'.format(c['host'], c['port']),
+	lambda c: 'gunicorn -b {0}:{1} src.core_decision_flask_app:app'.format(c['host'], c['port']),
 	{
 		'FLASK_APP': FLASK_APP,
 		'FLASK_DEBUG': 'false'

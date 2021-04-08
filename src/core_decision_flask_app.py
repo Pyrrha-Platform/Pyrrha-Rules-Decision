@@ -4,7 +4,7 @@ from flask_restplus import Api, Resource, fields, reqparse
 from flask_cors import CORS, cross_origin
 import json
 import pandas as pd
-from GasExposureAnalytics import GasExposureAnalytics
+from .GasExposureAnalytics import GasExposureAnalytics
 from dotenv import load_dotenv
 import time
 import atexit
@@ -20,9 +20,6 @@ logging.basicConfig(level=os.environ.get("LOGLEVEL", logging.INFO))
 
 # Get a logger and keep its name in sync with this filename
 logger = logging.getLogger(os.path.basename(__file__))
-
-# load environment variables
-load_dotenv()
 
 # The application
 app = Flask(__name__)

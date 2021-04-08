@@ -2,7 +2,8 @@ FROM python:3.7.7-slim
 
 ENV PYTHONUNBUFFERED=1
 
-COPY src/* /opt/microservices/
+COPY src/* /opt/microservices/src/
+COPY manage.py /opt/microservices/
 COPY requirements.txt /opt/microservices/
 
 # hadolint ignore=DL3008,DL3013,DL3015
@@ -19,4 +20,5 @@ RUN pip install --upgrade pip \
 EXPOSE 8080
 WORKDIR /opt/microservices/
 
-CMD ["python", "core_decision_flask_app.py", "8080"]
+ENTRYPOINT [ "python" ]
+CMD ["manage.py", "start", "0.0.0.0:3000"]

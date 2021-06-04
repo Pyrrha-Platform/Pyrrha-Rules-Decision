@@ -1,13 +1,13 @@
-# Prometeo rules and decision engine
+# Pyrrha rules and decision engine
 
-This repository contains the [Prometeo](https://github.com/Code-and-Response/Prometeo) solution application for determining thresholds in toxin exposure measured by the [sensor device](https://github.com/Code-and-Response/Prometeo-Firmware) and sent to the cloud from the Samsung [smartphone](https://github.com/Code-and-Response/Prometeo-Mobile-App) carried by the firefighters.
+This repository contains the [Pyrrha](https://github.com/Pyrrha-Platform/Pyrrha) solution application for determining thresholds in toxin exposure measured by the [sensor device](https://github.com/Pyrrha-Platform/Pyrrha-Firmware) and sent to the cloud from the Samsung [smartphone](https://github.com/Pyrrha-Platform/Pyrrha-Mobile-App) carried by the firefighters.
 
 This service wakes up every minute and calculates time weighted average exposures for all fire fighters and compares them to the configured limits.
 
 [![License](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0) [![Slack](https://img.shields.io/badge/Join-Slack-blue)](https://callforcode.org/slack)
 
 ## Contents
-- [Prometeo rules and decision engine](#prometeo-rules-and-decision-engine)
+- [Pyrrha rules and decision engine](#Pyrrha-rules-and-decision-engine)
   - [Contents](#contents)
   - [Prerequisites](#prerequisites)
   - [Run locally with Python](#run-locally-with-python)
@@ -36,7 +36,7 @@ You can run this solution locally in docker as follows
     ```
    2. run the image
     ```
-        docker run -p 3306:3306 --name prometeo-mariadb -e MYSQL_ROOT_PASSWORD='' -d mariadb
+        docker run -p 3306:3306 --name pyrrha-mariadb -e MYSQL_ROOT_PASSWORD='' -d mariadb
     ```
     3. Test the image - TBD
 3. Create python virtual environment
@@ -103,7 +103,7 @@ You can run this application on Kubernetes. The skaffold.yaml file let's you qui
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting Prometeo pull requests.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting Pyrrha pull requests.
 
 ## License
 

@@ -15,7 +15,7 @@ jobs:
           python-version: 3.8
       - name: Install dependencies
         run: |
-          apt-get install -y libmariadb3 libmariadb-dev
+          sudo apt-get install -y libmariadb3 libmariadb-dev
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names

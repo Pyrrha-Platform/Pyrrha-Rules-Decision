@@ -15,13 +15,9 @@ jobs:
           python-version: 3.8
       - name: Install dependencies
         run: |
+          apt-get install -y libmariadb3 libmariadb-dev
           python -m pip install --upgrade pip
           pip install flake8 pytest
-          apt-get update
-          apt-get install --no-install-recommends -y python
-          apt-get install -y build-essential
-          apt-get install -y libmariadb3 libmariadb-dev
-          apt-get clean
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Lint with flake8
         run: |

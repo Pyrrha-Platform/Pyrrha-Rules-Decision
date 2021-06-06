@@ -45,5 +45,5 @@ jobs:
           image-name: rulesdecision
           k8s-cluster-name: $IKS_CLUSTER
           k8s-cluster-namespace: $K8S_CLUSTER_NAMESPACE
-          registry-hostname: us.icr.io
+          registry-hostname: uk.icr.io
           working-directory: "."

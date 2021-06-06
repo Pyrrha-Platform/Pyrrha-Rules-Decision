@@ -37,6 +37,7 @@ jobs:
           cloud-api-key: $IBM_CLOUD_API_KEY
           cloud-region: $IBM_CLOUD_REGION
           icr-region: $ICR_REGION
+          cloud-resource-group: Prometeo
           deployment-name: rulesdecision-rulesdecision
           container-name: rulesdecision
           github-sha: $GITHUB_SHA

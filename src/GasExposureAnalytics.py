@@ -223,7 +223,7 @@ class GasExposureAnalytics(object):
             dataframes = []
             for csv_file in list_of_csv_files : 
                 df = pd.read_csv(csv_file, engine='python', parse_dates=[TIMESTAMP_COL], index_col = TIMESTAMP_COL)
-                assert FIREFIGHTER_ID_COL in df.columns, "CSV files is missing key columns %s" % (required_cols)
+                # assert FIREFIGHTER_ID_COL in df.columns, "CSV files is missing key columns %s" % (required_cols)
                 dataframes.append(df)
             # Merge the dataframes (also pre-sort, to speed up test runs and enable debug slicing on the index)
             self._sensor_log_from_csv_df = pd.concat(dataframes).sort_index()

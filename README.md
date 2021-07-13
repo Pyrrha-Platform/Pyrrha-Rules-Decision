@@ -7,16 +7,15 @@ This service wakes up every minute and calculates time weighted average exposure
 [![License](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0) [![Slack](https://img.shields.io/badge/Join-Slack-blue)](https://callforcode.org/slack)
 
 ## Contents
-- [Pyrrha rules and decision engine](#Pyrrha-rules-and-decision-engine)
-  - [Contents](#contents)
-  - [Prerequisites](#prerequisites)
-  - [Run locally with Python](#run-locally-with-python)
-  - [Run locally with Docker](#run-locally-with-docker)
-  - [Run on Kubernetes](#run-on-kubernetes)
-  - [Troubleshooting](#troubleshooting)
-  - [Built with](#built-with)
-  - [Contributing](#contributing)
-  - [License](#license)
+- [Contents](#contents)
+- [Prerequisites](#prerequisites)
+- [Run locally with Python](#run-locally-with-python)
+- [Run locally with Docker](#run-locally-with-docker)
+- [Run on Kubernetes](#run-on-kubernetes)
+- [Troubleshooting](#troubleshooting)
+- [Built with](#built-with)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Prerequisites
 1. [Docker](https://docs.docker.com/desktop/)
@@ -32,7 +31,7 @@ You can run this solution locally in docker as follows
 2. Install mariadb locally
    1. pull mariadb from dockerhub
     ```
-        docker pull mariadb
+        docker pull mariadb 
     ```
    2. run the image
     ```

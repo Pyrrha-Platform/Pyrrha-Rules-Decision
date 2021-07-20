@@ -205,7 +205,7 @@ class GasExposureAnalytics(object):
                                     +":"+os.getenv("MARIADB_PASSWORD")
                                     +"@"+os.getenv("MARIADB_HOST")
                                     +":"+str(os.getenv("MARIADB_PORT"))
-                                    +"/prometeo")
+                                    +"/"+str(os.getenv("MARIADB_DB")))
         metadata=sqlalchemy.MetaData(SQLALCHEMY_DATABASE_URI)
         self._db_engine = metadata.bind
 

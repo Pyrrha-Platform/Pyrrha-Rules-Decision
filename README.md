@@ -7,8 +7,10 @@ This repository contains the [Pyrrha](https://github.com/Pyrrha-Platform/Pyrrha)
 This service wakes up every minute and calculates time weighted average exposures for all fire fighters and compares them to the configured limits.
 
 ## Contents
+
 - [Contents](#contents)
 - [Prerequisites](#prerequisites)
+- [Running MariaDB](#running-mariadb)
 - [Run locally with Python](#run-locally-with-python)
 - [Run locally with Docker](#run-locally-with-docker)
 - [Run on Kubernetes](#run-on-kubernetes)
@@ -18,37 +20,43 @@ This service wakes up every minute and calculates time weighted average exposure
 - [License](#license)
 
 ## Prerequisites
+
 1. [Docker](https://docs.docker.com/desktop/)
-2. [IBM CLI](https://cloud.ibm.com/docs/cli?topic=cli-install-ibmcloud-cli)
+2. [Docker-Compose](https://docs.docker.com/compose/)
 3. [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 4. [Helm](https://helm.sh/docs/intro/install/)
 5. [Skaffold](https://skaffold.dev/docs/install/)
+6. [IBM CLI](https://cloud.ibm.com/docs/cli?topic=cli-install-ibmcloud-cli)
+
+## Running MariaDB
+
+MariaDB is a prerequisite for running the rules and decision engine service. Follow the instructions in [Pyrrha-Database repository](https://github.com/Pyrrha-Platform/Pyrrha-Database) to build and run MariaDB locally using Docker. The following steps assume you have MariaDB running locally as a standalone service or as a docker container.
 
 ## Run locally with Python
-You can run this solution locally in docker as follows
 
-1. Set up environment variables in the `src/.env` file
-2. Install mariadb locally
-   1. pull mariadb from dockerhub
-    ```
-        docker pull mariadb 
-    ```
-   2. run the image
-    ```
-        docker run -p 3306:3306 --name pyrrha-mariadb -e MYSQL_ROOT_PASSWORD='' -d mariadb
-    ```
-    3. Test the image - TBD
-3. Create python virtual environment
+1. Copy `src/.env.example` to `src/.env` and fill out with MariaDB credentials that you set up in the previous step.
    ```
-        python3 -m venv python3
+   MARIADB_HOST=localhost
+   MARIADB_PORT=3306
+   MARIADB_USERNAME=root
+   MARIADB_PASSWORD=${MDB_PASSWORD}
+   MARIADB_DB=pyrrha
    ```
-4. Activate virtual environment
+2. Create python virtual environment
    ```
-        source python3/bin/activate
+   python3 -m venv python3
+   ```
+3. Activate virtual environment
+   ```
+   source python3/bin/activate
+   ```
+4. Install the dependencies
+   ```
+   pip install -r requirements.txt
    ```
 5. Run the application
    ```
-        python src/core_decision_flask_app.py 8080
+   python src/core_decision_flask_app.py 8080
    ```
 6. You should see the following output
    ```
@@ -58,17 +66,32 @@ You can run this solution locally in docker as follows
         WARNING: Do not use the development server in a production environment.
         Use a production WSGI server instead.
         * Debug mode: off
- * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+           Use a production WSGI server instead.
+        * Debug mode: off
+        INFO:werkzeug: * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
    ```
 
 ## Run locally with Docker
-1. Build the image
-    ```
-        docker build . -t rulesdecision
-    ```
-2. Run the image
+
+If you are running MariaDB as a docker container, we recommend you use the build file located in the [Pyrrha-Deployment-Configurations](https://github.com/Pyrrha-Platform/Pyrrha-Deployment-Configurations) repository to start the rules and decision engine service. Run the following after configuring the services as explained in [the instructions](https://github.com/Pyrrha-Platform/Pyrrha-Deployment-Configurations/blob/main/Docker_Compose.md).
+
    ```
-        docker run -p8080:8080 -t rulesdecision
+   docker-compose up --build pyrrha-rulesdecision
+   ```
+You can stop the services with:
+   ```
+   docker-compose stop pyrrha-rulesdecision
+   ```
+
+If you want to run build and run this image as a docker container and not use docker-compose, you can follow these steps:
+
+1. Build the image
+   ```
+   docker build . -t rulesdecision
+   ```
+2. Run the image using the following command. Notice we are passing in the `src/.env` file as environment variable. This will not work if MariaDB is running in a docker image as `localhost:3306` will not resolve to the right image.
+   ```
+   docker run -p8080:8080 --env-file src/.env -t rulesdecision
    ```
 3. You should see the application logs
    ```
@@ -80,25 +103,25 @@ You can run this solution locally in docker as follows
         * Debug mode: off
         * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
    ```
+You can also use docker-compose to run all the services by using the build file located in the [Pyrrha-Deployment-Configurations](https://github.com/Pyrrha-Platform/Pyrrha-Deployment-Configurations) repository.
 
 ## Run on Kubernetes
-You can run this application on Kubernetes. The skaffold.yaml file let's you quickly run the application on the cluster by using [Skaffold](https://skaffold.dev/docs/pipeline-stages/deployers/helm/). There are two profiles provided. To run the solution on the `test` namespace use:
-    ```
-        skaffold dev -p test
-    ```
+
+You can run this application on Kubernetes using the helm charts provided in [Pyrrha-Deployment-Configurations](https://github.com/Pyrrha-Platform/Pyrrha-Deployment-Configurations/tree/main/k8s) repository. The [skaffold.yaml](https://github.com/Pyrrha-Platform/Pyrrha-Rules-Decision/blob/main/skaffold.yaml) file provided here let's you quickly run the application on the cluster by using [Skaffold](https://skaffold.dev/docs/pipeline-stages/deployers/helm/). There are two profiles provided. To run the solution on the `test` namespace use:
+`skaffold dev -p test`
 
 ## Troubleshooting
+
 1. Database does not connect
    1. ensure `.env` file has the correct values for database connection
 2. Change the db password
 
 ## Built with
 
-* Docker
-* MariaDB
-* Flask
-* [IBM Kubernetes Service](https://cloud.ibm.com/kubernetes/overview)
-
+- Docker
+- MariaDB
+- Flask
+- [IBM Kubernetes Service](https://cloud.ibm.com/kubernetes/overview)
 
 ## Contributing
 

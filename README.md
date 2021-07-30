@@ -73,8 +73,7 @@ You can run this solution locally in docker as follows
    WARNING: Do not use the development server in a production environment.
    Use a production WSGI server instead.
    * Debug mode: off
-
-   - Running on <http://0.0.0.0:8080/> (Press CTRL+C to quit)
+   * Running on <http://0.0.0.0:8080/> (Press CTRL+C to quit)
    ```
 
 ## Run locally with Docker

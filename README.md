@@ -4,7 +4,7 @@
 
 This repository contains the [Pyrrha](https://github.com/Pyrrha-Platform/Pyrrha) solution application for determining thresholds in toxin exposure measured by the [sensor device](https://github.com/Pyrrha-Platform/Pyrrha-Firmware) and sent to the cloud from the Samsung [smartphone](https://github.com/Pyrrha-Platform/Pyrrha-Mobile-App) carried by the firefighters.
 
-This service wakes up every minute and calculates time weighted average exposures for all fire fighters and compares them to the configured limits.
+This service wakes up every minute and calculates time weighted average exposures for all firefighters and compares them to the configured limits.
 
 ## Contents
 
@@ -31,8 +31,10 @@ This service wakes up every minute and calculates time weighted average exposure
 You can run this solution locally in docker as follows
 
 1. Set up environment variables in the `src/.env` file
-1. Install mariadb locally
-   1. pull mariadb from dockerhub
+
+1. Install MariaDB locally
+
+   1. pull MariaDB from DockerHub
 
       ```bash
       docker pull mariadb 
@@ -46,7 +48,7 @@ You can run this solution locally in docker as follows
 
    1. Test the image - TBD
 
-1. Create python virtual environment
+1. Create Python virtual environment
 
    ```bash
    python3 -m venv python3

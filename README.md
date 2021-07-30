@@ -7,6 +7,7 @@ This repository contains the [Pyrrha](https://github.com/Pyrrha-Platform/Pyrrha)
 This service wakes up every minute and calculates time weighted average exposures for all fire fighters and compares them to the configured limits.
 
 ## Contents
+
 - [Contents](#contents)
 - [Prerequisites](#prerequisites)
 - [Run locally with Python](#run-locally-with-python)
@@ -18,6 +19,7 @@ This service wakes up every minute and calculates time weighted average exposure
 - [License](#license)
 
 ## Prerequisites
+
 1. [Docker](https://docs.docker.com/desktop/)
 2. [IBM CLI](https://cloud.ibm.com/docs/cli?topic=cli-install-ibmcloud-cli)
 3. [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
@@ -25,80 +27,104 @@ This service wakes up every minute and calculates time weighted average exposure
 5. [Skaffold](https://skaffold.dev/docs/install/)
 
 ## Run locally with Python
+
 You can run this solution locally in docker as follows
 
 1. Set up environment variables in the `src/.env` file
-2. Install mariadb locally
+1. Install mariadb locally
    1. pull mariadb from dockerhub
-    ```
-        docker pull mariadb 
-    ```
-   2. run the image
-    ```
-        docker run -p 3306:3306 --name pyrrha-mariadb -e MYSQL_ROOT_PASSWORD='' -d mariadb
-    ```
-    3. Test the image - TBD
-3. Create python virtual environment
+
+      ```bash
+      docker pull mariadb 
+      ```
+
+   1. run the image
+
+      ```bash
+      docker run -p 3306:3306 --name pyrrha-mariadb -e MYSQL_ROOT_PASSWORD='' -d mariadb
+      ```
+
+   1. Test the image - TBD
+
+1. Create python virtual environment
+
+   ```bash
+   python3 -m venv python3
    ```
-        python3 -m venv python3
+
+1. Activate virtual environment
+
+   ```bash
+   source python3/bin/activate
    ```
-4. Activate virtual environment
+
+1. Run the application
+
+   ```bash
+   python src/core_decision_flask_app.py 8080
    ```
-        source python3/bin/activate
-   ```
-5. Run the application
-   ```
-        python src/core_decision_flask_app.py 8080
-   ```
-6. You should see the following output
-   ```
-        starting application
-        * Serving Flask app "core_decision_flask_app" (lazy loading)
-        * Environment: production
-        WARNING: Do not use the development server in a production environment.
-        Use a production WSGI server instead.
-        * Debug mode: off
- * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+
+1. You should see the following output
+
+   ```bash
+   starting application
+   * Serving Flask app "core_decision_flask_app" (lazy loading)
+   * Environment: production
+   WARNING: Do not use the development server in a production environment.
+   Use a production WSGI server instead.
+   * Debug mode: off
+
+   - Running on <http://0.0.0.0:8080/> (Press CTRL+C to quit)
    ```
 
 ## Run locally with Docker
+
 1. Build the image
+
+    ```bash
+    docker build . -t rulesdecision
     ```
-        docker build . -t rulesdecision
-    ```
-2. Run the image
+
+1. Run the image
+
+   ```bash
+   docker run -p8080:8080 -t rulesdecision
    ```
-        docker run -p8080:8080 -t rulesdecision
-   ```
-3. You should see the application logs
-   ```
-        starting application
-        * Serving Flask app "core_decision_flask_app" (lazy loading)
-        * Environment: production
-        WARNING: Do not use the development server in a production environment.
-        Use a production WSGI server instead.
-        * Debug mode: off
-        * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+
+1. You should see the application logs
+
+   ```bash
+   starting application
+   * Serving Flask app "core_decision_flask_app" (lazy loading)
+   * Environment: production
+   WARNING: Do not use the development server in a production environment.
+   Use a production WSGI server instead.
+   * Debug mode: off
+   * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
    ```
 
 ## Run on Kubernetes
+
 You can run this application on Kubernetes. The skaffold.yaml file let's you quickly run the application on the cluster by using [Skaffold](https://skaffold.dev/docs/pipeline-stages/deployers/helm/). There are two profiles provided. To run the solution on the `test` namespace use:
-    ```
-        skaffold dev -p test
-    ```
+
+```bash
+skaffold dev -p test
+```
 
 ## Troubleshooting
+
 1. Database does not connect
+
    1. ensure `.env` file has the correct values for database connection
-2. Change the db password
+
+1. Change the db password
 
 ## Built with
 
-* Docker
-* MariaDB
-* Flask
-* [IBM Kubernetes Service](https://cloud.ibm.com/kubernetes/overview)
-
+- Docker
+- MariaDB
+- Flask
+- [IBM Kubernetes Service](https://cloud.ibm.com/kubernetes/overview)
 
 ## Contributing
 

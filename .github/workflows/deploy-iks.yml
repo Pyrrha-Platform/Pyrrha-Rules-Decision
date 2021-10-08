@@ -18,8 +18,7 @@ env:
   IBM_CLOUD_RESOURCE_GROUP: ${{ secrets.IBM_CLOUD_RESOURCE_GROUP }}
   ICR_REGION: eu-gb
   ICR_NAMESPACE: ${{ secrets.ICR_NAMESPACE }}
-  ICR_REGISTRY_HOST: ${{ICR_REGISTRY_HOST}}
-  REGISTRY_HOSTNAME: uk.icr.io
+  ICR_REGISTRY_HOSTNAME: ${{ICR_REGISTRY_HOSTNAME}}
   IKS_CLUSTER: ${{ secrets.IKS_CLUSTER }}
   K8S_CLUSTER_NAMESPACE: ${{ secrets.K8S_CLUSTER_NAMESPACE }}
   IKS_DEPLOYMENT_NAME: ${{ secrets.IKS_DEPLOYMENT_NAME }}
@@ -51,5 +50,5 @@ jobs:
           image-name: rulesdecision
           k8s-cluster-name: $IKS_CLUSTER
           k8s-cluster-namespace: $K8S_CLUSTER_NAMESPACE
-          registry-hostname: $ICR_REGISTRY_HOST
+          registry-hostname: $ICR_REGISTRY_HOSTNAME
           working-directory: "."

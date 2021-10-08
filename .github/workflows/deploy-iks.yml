@@ -3,11 +3,12 @@
 name: Build and Deploy to IKS
 
 on:
-  push: # Execute on every push and successful merge on the master branch
+  push: # Execute on every push and successful merge on the main branch
     branches:
-      - master
+      - main
     paths-ignore: #do not push a new build when the change is only to md files
       - "**/*.md"
+  workflow_dispatch:
       
 # Environment variables available to all jobs and steps in this workflow
 env:

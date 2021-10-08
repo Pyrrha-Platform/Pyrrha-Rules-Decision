@@ -15,6 +15,7 @@ env:
   GITHUB_SHA: ${{ github.sha }}
   IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
   IBM_CLOUD_REGION: eu-gb
+  IBM_CLOUD_RESOURCE_GROUP: ${{ secrets.IBM_CLOUD_RESOURCE_GROUP }}
   ICR_REGION: eu-gb
   ICR_NAMESPACE: ${{ secrets.ICR_NAMESPACE }}
   REGISTRY_HOSTNAME: uk.icr.io
@@ -40,7 +41,7 @@ jobs:
           cloud-api-key: $IBM_CLOUD_API_KEY
           cloud-region: $IBM_CLOUD_REGION
           icr-region: $ICR_REGION
-          cloud-resource-group: Prometeo
+          cloud-resource-group: $IBM_CLOUD_RESOURCE_GROUP
           deployment-name: rulesdecision-rulesdecision
           container-name: rulesdecision
           github-sha: $GITHUB_SHA

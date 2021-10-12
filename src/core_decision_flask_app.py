@@ -36,14 +36,14 @@ SQLALCHEMY_DATABASE_URI = ("mysql+pymysql://"+os.getenv('MARIADB_USERNAME')
                             +":"+os.getenv("MARIADB_PASSWORD")
                             +"@"+os.getenv("MARIADB_HOST")
                             +":"+str(os.getenv("MARIADB_PORT"))
-                            +"/prometeo")
+                            +"/"+str(os.getenv("MARIADB_DB")))
 DB_ENGINE = sqlalchemy.MetaData(SQLALCHEMY_DATABASE_URI).bind
 ANALYTICS_TABLE = 'firefighter_status_analytics'
 FIREFIGHTER_ID_COL = 'firefighter_id'
 TIMESTAMP_COL = 'timestamp_mins'
 STATUS_LED_COL = 'analytics_status_LED'
 
-# We initialize the prometeo Analytics engine.
+# We initialize the pyrrha Analytics engine.
 perMinuteAnalytics = GasExposureAnalytics()
 
 

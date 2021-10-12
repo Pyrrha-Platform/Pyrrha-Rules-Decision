@@ -1,0 +1,54 @@
+# This workflow will build a docker container, publish it to IBM Container Registry,
+# and deploy it to an existing IKS cluster
+name: Build and Deploy to IKS
+
+on:
+  push: # Execute on every push and successful merge on the main branch
+    branches:
+      - main
+    paths-ignore: #do not push a new build when the change is only to md files
+      - "**/*.md"
+  workflow_dispatch:
+      
+# Environment variables available to all jobs and steps in this workflow
+env:
+  GITHUB_SHA: ${{ github.sha }}
+  IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+  IBM_CLOUD_REGION: eu-gb
+  IBM_CLOUD_RESOURCE_GROUP: ${{ secrets.IBM_CLOUD_RESOURCE_GROUP }}
+  ICR_REGION: eu-gb
+  ICR_NAMESPACE: ${{ secrets.ICR_NAMESPACE }}
+  ICR_REGISTRY_HOSTNAME: ${{secrets.ICR_REGISTRY_HOSTNAME}}
+  IKS_CLUSTER: ${{ secrets.IKS_CLUSTER }}
+  K8S_CLUSTER_NAMESPACE: ${{ secrets.K8S_CLUSTER_NAMESPACE }}
+  IKS_DEPLOYMENT_NAME: ${{ secrets.IKS_DEPLOYMENT_NAME }}
+
+jobs:
+  setup-build-publish-deploy:
+    name: Setup, Build, Publish, and Deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v2
+
+      # Turnstyle ensures that this job only runs one at a time in this repository
+      - name: Turnstyle
+        uses: softprops/turnstyle@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: call-for-code/build-push-deploy@main
+        with:
+          cloud-api-key: $IBM_CLOUD_API_KEY
+          cloud-region: $IBM_CLOUD_REGION
+          icr-region: $ICR_REGION
+          cloud-resource-group: $IBM_CLOUD_RESOURCE_GROUP
+          deployment-name: $IKS_DEPLOYMENT_NAME
+          container-name: rulesdecision
+          github-sha: $GITHUB_SHA
+          icr-namespace: $ICR_NAMESPACE
+          image-name: rulesdecision
+          k8s-cluster-name: $IKS_CLUSTER
+          k8s-cluster-namespace: $K8S_CLUSTER_NAMESPACE
+          registry-hostname: $ICR_REGISTRY_HOSTNAME
+          working-directory: "."

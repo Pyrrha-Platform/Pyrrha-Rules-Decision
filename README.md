@@ -76,7 +76,7 @@ You can run this solution locally in docker as follows
    1. Run the image
 
       ```bash
-      docker run -p 3306:3306 --name pyrrha-mariadb -e MYSQL_ROOT_PASSWORD='' -d mariadb
+      docker run --rm -p 3306:3306 --name pyrrha-mariadb -e MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=true -d mariadb
       ```
 
    1. Test the image - TBD

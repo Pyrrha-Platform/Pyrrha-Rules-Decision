@@ -4,15 +4,11 @@ EXPOSE 8080
 ENV PYTHONUNBUFFERED=1
 
 COPY --chown=1001 requirements.txt .
-COPY --chown=1001 manage.py .
-
 RUN pip install -r /opt/app-root/src/requirements.txt
 
 COPY --chown=1001 src/* ./
 
 RUN [ -f ".env" ] || cp .env.docker .env
 
-ENTRYPOINT [ "python" ]
-CMD ["manage.py", "start", "0.0.0.0:3000"]
-
+ENTRYPOINT ["gunicorn"  , "-b", "0.0.0.0:8080", "core_decision_flask_app:app"]
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 CMD curl -f http://localhost:8080/health

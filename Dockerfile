@@ -3,12 +3,11 @@ EXPOSE 8080
 
 ENV PYTHONUNBUFFERED=1
 
-WORKDIR /opt/microservices/
+COPY --chown=1001 requirements.txt .
+RUN pip install -r /opt/app-root/src/requirements.txt
 
-COPY requirements.txt .
-RUN pip install -r /opt/microservices/requirements.txt
+COPY --chown=1001 src/* ./
 
-COPY src/* .
 RUN [ -f ".env" ] || cp .env.docker .env
 
 ENTRYPOINT ["python", "core_decision_flask_app.py", "8080"]

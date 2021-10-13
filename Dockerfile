@@ -1,24 +1,18 @@
-FROM python:3.7.7-slim
+FROM registry.access.redhat.com/ubi8/python-38:1-71
+EXPOSE 8080
 
 ENV PYTHONUNBUFFERED=1
 
-COPY src/* /opt/microservices/src/
-COPY manage.py /opt/microservices/
-COPY requirements.txt /opt/microservices/
+COPY --chown=1001 requirements.txt .
+COPY --chown=1001 manage.py .
 
-# hadolint ignore=DL3008,DL3013,DL3015
-RUN pip install --upgrade pip \
-  && pip install --upgrade pipenv\
-  && apt-get update \
-  && apt-get install --no-install-recommends -y python \
-  && apt-get install -y build-essential \
-  && apt-get install -y libmariadb3 libmariadb-dev \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/* \
-  && pip install --upgrade -r /opt/microservices/requirements.txt
+RUN pip install -r /opt/app-root/src/requirements.txt
 
-EXPOSE 8080
-WORKDIR /opt/microservices/
+COPY --chown=1001 src/* ./
+
+RUN [ -f ".env" ] || cp .env.docker .env
 
 ENTRYPOINT [ "python" ]
 CMD ["manage.py", "start", "0.0.0.0:3000"]
+
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 CMD curl -f http://localhost:8080/health

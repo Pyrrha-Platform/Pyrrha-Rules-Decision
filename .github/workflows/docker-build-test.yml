@@ -1,0 +1,25 @@
+name: "Test Docker build"
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Docker Build
+        run: docker build -t rulesdecision .
+
+      - name: Docker Test
+        run: |
+          docker run --rm --name rulesdecision-test -d rulesdecision
+          sleep 5
+          STATUS_CODE=$(docker exec rulesdecision-test curl -s -o /dev/null -w "%{http_code}" localhost:8080/health)
+          docker stop rulesdecision-test
+          echo $STATUS_CODE | grep -q 200

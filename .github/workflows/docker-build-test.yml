@@ -14,11 +14,11 @@ jobs:
           fetch-depth: 0
 
       - name: Docker Build
-        run: docker build -t $ICR_REGISTRY_HOSTNAME/rulesdecision .
+        run: docker build -t ${{ secrets.ICR_REGISTRY_HOSTNAME }}/rulesdecision .
 
       - name: Docker Test
         run: |
-          docker run --rm --name rulesdecision-test -d $ICR_REGISTRY_HOSTNAME/rulesdecision
+          docker run --rm --name rulesdecision-test -d ${{ secrets.ICR_REGISTRY_HOSTNAME }}/rulesdecision
           sleep 5
           STATUS_CODE=$(docker exec rulesdecision-test curl -s -o /dev/null -w "%{http_code}" localhost:8080/health)
           docker stop rulesdecision-test

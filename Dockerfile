@@ -1,22 +1,15 @@
-FROM python:3.7.7-slim
+FROM registry.access.redhat.com/ubi8/python-38:1-71
+EXPOSE 8080
 
 ENV PYTHONUNBUFFERED=1
 
-COPY src/* /opt/microservices/
-COPY requirements.txt /opt/microservices/
-
-# hadolint ignore=DL3008,DL3013,DL3015
-RUN pip install --upgrade pip \
-  && pip install --upgrade pipenv\
-  && apt-get update \
-  && apt-get install --no-install-recommends -y python \
-  && apt-get install -y build-essential \
-  && apt-get install -y libmariadb3 libmariadb-dev \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/* \
-  && pip install --upgrade -r /opt/microservices/requirements.txt
-
-EXPOSE 8080
 WORKDIR /opt/microservices/
 
-CMD ["python", "core_decision_flask_app.py", "8080"]
+COPY requirements.txt .
+RUN pip install -r /opt/microservices/requirements.txt
+
+COPY src/* .
+RUN [ -f ".env" ] || cp .env.docker .env
+
+ENTRYPOINT ["python", "core_decision_flask_app.py", "8080"]
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 CMD curl -f http://localhost:8080/health

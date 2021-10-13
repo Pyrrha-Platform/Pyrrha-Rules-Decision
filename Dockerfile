@@ -8,7 +8,7 @@ WORKDIR /opt/microservices/
 COPY requirements.txt .
 RUN pip install -r /opt/microservices/requirements.txt
 
-COPY src/* .
+COPY src/* ./
 RUN [ -f ".env" ] || cp .env.docker .env
 
 ENTRYPOINT ["python", "core_decision_flask_app.py", "8080"]

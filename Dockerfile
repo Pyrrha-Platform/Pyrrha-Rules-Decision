@@ -10,5 +10,5 @@ COPY --chown=1001 src/* ./
 
 RUN [ -f ".env" ] || cp .env.docker .env
 
-ENTRYPOINT ["python", "core_decision_flask_app.py", "8080"]
+ENTRYPOINT ["gunicorn"  , "-b", "0.0.0.0:8080", "core_decision_flask_app:app"]
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 CMD curl -f http://localhost:8080/health

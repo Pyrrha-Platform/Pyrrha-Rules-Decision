@@ -13,6 +13,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Docker Lint
+        run: |
+          docker run --rm -i hadolint/hadolint < Dockerfile
+
       - name: Docker Build
         run: docker build -t rulesdecision .
 

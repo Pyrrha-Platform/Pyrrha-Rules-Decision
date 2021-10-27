@@ -1,15 +1,32 @@
-FROM registry.access.redhat.com/ubi8/python-38@sha256:65b1acc755bb9e73286a1b73e0683172082ef5034d92e38a55566e4ac5e0ab47
-USER 1001
-WORKDIR /opt/app-root/src/
+FROM python:3.8.12-bullseye as build
+
+WORKDIR /usr/app
+RUN python -m venv /usr/app/venv
+ENV PATH="/usr/app/venv/bin:$PATH"
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.8.12-slim-bullseye@sha256:d31a1beb6ccddbf5b5c72904853f5c2c4d1f49bb8186b623db0b80f8c37b5899
+
+RUN apt-get update &&\
+    apt-get --no-install-recommends -y install curl=7.74.0-1.3+b1 &&\
+    rm -rf /var/lib/apt/lists/* &&\
+    groupadd -g 999 python &&\
+    useradd -u 999 -g python python &&\
+    mkdir /usr/app &&\
+    chown python:python /usr/app
+
+WORKDIR /usr/app
 
 EXPOSE 8080
 ENV PYTHONUNBUFFERED=1
 
-COPY --chown=1001 requirements.txt .
-RUN pip install --no-cache-dir -r /opt/app-root/src/requirements.txt
+COPY --from=build --chown=python:python /usr/app/venv ./venv
+ENV PATH="/usr/app/venv/bin:$PATH"
 
-COPY --chown=1001 src/* ./
-
+WORKDIR /usr/app/src
+COPY --chown=python:python src/* ./ 
 RUN [ -f ".env" ] || cp .env.docker .env
 
 ENTRYPOINT ["gunicorn"  , "-b", "0.0.0.0:8080", "core_decision_flask_app:app"]

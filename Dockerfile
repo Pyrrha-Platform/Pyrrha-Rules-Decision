@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 FROM python:3.8.12-slim-bullseye@sha256:d31a1beb6ccddbf5b5c72904853f5c2c4d1f49bb8186b623db0b80f8c37b5899
 
 RUN apt-get update &&\
-    apt-get --no-install-recommends -y install curl=7.74.0-1.3+b1 &&\
+    apt-get --no-install-recommends -y install curl=7.74.* &&\
     rm -rf /var/lib/apt/lists/* &&\
     groupadd -g 999 python &&\
     useradd -u 999 -g python python &&\

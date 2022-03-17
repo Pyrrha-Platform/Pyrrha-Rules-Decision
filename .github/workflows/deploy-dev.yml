@@ -1,6 +1,6 @@
 # This workflow will build a docker container, publish it to IBM Container Registry,
 # and deploy it to an existing IKS cluster
-name: Build and Deploy to IKS
+name: Build and Deploy Dev
 
 on:
   workflow_dispatch:

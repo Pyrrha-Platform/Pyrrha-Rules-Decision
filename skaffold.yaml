@@ -7,33 +7,31 @@ profiles:
       - command: test
     build:
       artifacts:
-      - image: uk.icr.io/prometeo-cluster/rulesdecision
+        - image: uk.icr.io/prometeo-cluster/rulesdecision
     deploy:
       helm:
         releases:
-        - name: rulesdecision
-          chartPath: chart/rulesdecision
-          artifactOverrides:
-            rulesdecision:
-              image:
-                repository: uk.icr.io/prometeo-cluster/rulesdecision
-          overrides:
-            rulesdecision:
-              namespace: test
+          - name: rulesdecision
+            chartPath: chart/rulesdecision
+            artifactOverrides:
+              rulesdecision:
+                image:
+                  repository: uk.icr.io/prometeo-cluster/rulesdecision
+            overrides:
+              rulesdecision:
+                namespace: test
   - name: default
     activation:
       - command: default
     build:
       artifacts:
-      - image: uk.icr.io/prometeo-cluster/rulesdecision
+        - image: uk.icr.io/prometeo-cluster/rulesdecision
     deploy:
       helm:
         releases:
-        - name: rulesdecision
-          chartPath: chart/rulesdecision
-          artifactOverrides:
-            rulesdecision:
-              image:
-                repository: uk.icr.io/prometeo-cluster/rulesdecision
-        
-              
+          - name: rulesdecision
+            chartPath: chart/rulesdecision
+            artifactOverrides:
+              rulesdecision:
+                image:
+                  repository: uk.icr.io/prometeo-cluster/rulesdecision

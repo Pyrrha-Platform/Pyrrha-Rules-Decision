@@ -5,8 +5,9 @@ name: Build and Deploy Dev
 on:
   workflow_dispatch:
   push: # Execute on every push to the master branch. Merging a pull request counts as a push.
-    branches: main
-      
+    branches:
+      - main
+
 # Environment variables available to all jobs and steps in this workflow
 env:
   GITHUB_SHA: ${{ github.sha }}
@@ -26,9 +27,9 @@ jobs:
   setup-build-publish-deploy-dev:
     name: Setup, Build, Publish, and Deploy
     runs-on: ubuntu-latest
-    
+
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       # Turnstyle ensures that this job only runs one at a time in this repository
       - name: Turnstyle

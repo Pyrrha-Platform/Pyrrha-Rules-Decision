@@ -17,7 +17,6 @@ jobs:
           python-version: 3.8
       - name: Install dependencies
         run: |
-          id
           sudo apt update && apt upgrade && apt install -y gcc libmariadb-dev libmariadb3
           ls /usr/bin/ | grep maria*
           python -m pip install --upgrade pip

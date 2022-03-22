@@ -12,12 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python 3.8
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v3
         with:
           python-version: 3.8
       - name: Install dependencies
         run: |
           sudo apt update && apt upgrade && apt install -y gcc libmariadb-dev libmariadb3
+          echo $(find / -iname mariadb_config)
+          ls /usr/bin/ | grep maria*
           python -m pip install --upgrade pip
           pip install flake8 pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi

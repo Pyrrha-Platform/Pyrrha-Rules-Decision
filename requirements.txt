@@ -24,7 +24,7 @@ Jinja2==3.0.3
 jsonschema==4.4.0
 mariadb==1.0.5
 MarkupSafe==2.1.1
-mistune==2.0.2
+mistune==2.0.3
 numpy==1.19.1
 pandas==1.1.1
 pycparser==2.21

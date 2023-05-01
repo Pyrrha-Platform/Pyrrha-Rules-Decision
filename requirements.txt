@@ -10,7 +10,7 @@ coverage==5.5
 cryptography==39.0.1
 Cython==0.29.21
 flasgger==0.6.4
-Flask==1.0
+Flask==2.3.2
 Flask-Cors==3.0.10
 Flask-RESTful==0.3.6
 flask-restplus==0.13.0

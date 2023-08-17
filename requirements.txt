@@ -7,7 +7,7 @@ charset-normalizer==2.0.12
 click==8.0.4
 cloudant==2.4.0
 coverage==5.5
-cryptography==39.0.1
+cryptography==41.0.3
 Cython==0.29.21
 flasgger==0.6.4
 Flask==1.0

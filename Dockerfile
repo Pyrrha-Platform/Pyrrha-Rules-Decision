@@ -1,22 +1,35 @@
-FROM python:3.7.7-slim
+FROM python:3.8.12-bullseye as build
 
-ENV PYTHONUNBUFFERED=1
+WORKDIR /usr/app
+RUN python -m venv /usr/app/venv
+ENV PATH="/usr/app/venv/bin:$PATH"
 
-COPY src/* /opt/microservices/
-COPY requirements.txt /opt/microservices/
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# hadolint ignore=DL3008,DL3013,DL3015
-RUN pip install --upgrade pip \
-  && pip install --upgrade pipenv\
-  && apt-get update \
-  && apt-get install --no-install-recommends -y python \
-  && apt-get install -y build-essential \
-  && apt-get install -y libmariadb3 libmariadb-dev \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/* \
-  && pip install --upgrade -r /opt/microservices/requirements.txt
+FROM python:3.8.12-slim-bullseye@sha256:d31a1beb6ccddbf5b5c72904853f5c2c4d1f49bb8186b623db0b80f8c37b5899
+
+RUN apt-get update &&\
+    apt-get --no-install-recommends -y install curl=7.74.* &&\
+    rm -rf /var/lib/apt/lists/* &&\
+    groupadd -g 999 python &&\
+    useradd -u 999 -g python python &&\
+    mkdir /usr/app &&\
+    chown python:python /usr/app
+
+WORKDIR /usr/app
 
 EXPOSE 8080
-WORKDIR /opt/microservices/
+ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "core_decision_flask_app.py", "8080"]
+COPY --from=build --chown=python:python /usr/app/venv ./venv
+ENV PATH="/usr/app/venv/bin:$PATH"
+
+WORKDIR /usr/app/src
+COPY --chown=python:python src/* ./ 
+RUN [ -f ".env" ] || cp .env.docker .env
+
+USER python
+
+ENTRYPOINT ["gunicorn"  , "-b", "0.0.0.0:8080", "core_decision_flask_app:app"]
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 CMD curl -f http://localhost:8080/health

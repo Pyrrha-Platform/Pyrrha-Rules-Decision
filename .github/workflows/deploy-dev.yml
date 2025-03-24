@@ -1,33 +1,35 @@
 # This workflow will build a docker container, publish it to IBM Container Registry,
 # and deploy it to an existing IKS cluster
-name: Build and Deploy to IKS
+name: Build and Deploy Dev
 
 on:
-  release: # Execute when a release is created on the master branch
-    types:
-      - created
   workflow_dispatch:
+  push: # Execute on every push to the master branch. Merging a pull request counts as a push.
+    branches:
+      - main
 
 # Environment variables available to all jobs and steps in this workflow
 env:
   GITHUB_SHA: ${{ github.sha }}
-  IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
-  IBM_CLOUD_REGION: eu-gb
-  IBM_CLOUD_RESOURCE_GROUP: ${{ secrets.IBM_CLOUD_RESOURCE_GROUP }}
-  ICR_REGION: eu-gb
-  ICR_NAMESPACE: ${{ secrets.ICR_NAMESPACE }}
-  ICR_REGISTRY_HOSTNAME: ${{secrets.ICR_REGISTRY_HOSTNAME}}
-  IKS_CLUSTER: ${{ secrets.IKS_CLUSTER }}
-  K8S_CLUSTER_NAMESPACE: ${{ secrets.K8S_CLUSTER_NAMESPACE }}
-  IKS_DEPLOYMENT_NAME: ${{ secrets.IKS_DEPLOYMENT_NAME }}
+  IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY_DEV }}
+  IBM_CLOUD_REGION: ${{ secrets.IBM_CLOUD_REGION_DEV }}
+  IBM_CLOUD_RESOURCE_GROUP: ${{ secrets.IBM_CLOUD_RESOURCE_GROUP_DEV }}
+  ICR_REGION: ${{ secrets.ICR_REGION_DEV }}
+  ICR_NAMESPACE: ${{ secrets.ICR_NAMESPACE_DEV }}
+  ICR_REGISTRY_HOSTNAME: ${{secrets.ICR_REGISTRY_HOSTNAME_DEV}}
+  IKS_CLUSTER: ${{ secrets.IKS_CLUSTER_DEV }}
+  K8S_CLUSTER_NAMESPACE: ${{ secrets.K8S_CLUSTER_NAMESPACE_DEV }}
+  IKS_DEPLOYMENT_NAME: ${{ secrets.IKS_DEPLOYMENT_NAME_DEV }}
+  CONTAINER_NAME: ${{ secrets.CONTAINER_NAME_DEV }}
+  IMAGE_NAME: ${{ secrets.IMAGE_NAME_DEV }}
 
 jobs:
-  setup-build-publish-deploy:
+  setup-build-publish-deploy-dev:
     name: Setup, Build, Publish, and Deploy
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       # Turnstyle ensures that this job only runs one at a time in this repository
       - name: Turnstyle

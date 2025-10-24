@@ -1,6 +1,6 @@
 import os
 from flask import Flask, Response, jsonify, abort
-from flask_restplus import Api, Resource, fields, reqparse
+from flask_restx import Api, Resource, fields, reqparse
 from flask_cors import CORS, cross_origin
 import json
 import pandas as pd
@@ -40,7 +40,7 @@ SQLALCHEMY_DATABASE_URI = ("mysql+pymysql://"+os.getenv('MARIADB_USERNAME')
                             +"@"+os.getenv("MARIADB_HOST")
                             +":"+str(os.getenv("MARIADB_PORT"))
                             +"/"+str(os.getenv("MARIADB_DB")))
-DB_ENGINE = sqlalchemy.MetaData(SQLALCHEMY_DATABASE_URI).bind
+DB_ENGINE = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URI)
 ANALYTICS_TABLE = 'firefighter_status_analytics'
 FIREFIGHTER_ID_COL = 'firefighter_id'
 TIMESTAMP_COL = 'timestamp_mins'

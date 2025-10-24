@@ -206,8 +206,8 @@ class GasExposureAnalytics(object):
                                     +"@"+os.getenv("MARIADB_HOST")
                                     +":"+str(os.getenv("MARIADB_PORT"))
                                     +"/"+str(os.getenv("MARIADB_DB")))
-        metadata=sqlalchemy.MetaData(SQLALCHEMY_DATABASE_URI)
-        self._db_engine = metadata.bind
+        self._db_engine = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URI)
+        metadata = sqlalchemy.MetaData()
 
 
         # By default, the analytics will run from a database.

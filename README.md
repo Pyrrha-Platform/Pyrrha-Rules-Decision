@@ -68,27 +68,36 @@ MariaDB is a prerequisite for running the rules and decision engine service. Fol
 ## Run locally with Python
 
 1. Copy `src/.env.example` to `src/.env` and fill out with MariaDB credentials that you set up in the previous step.
-   ```
+
+   ```sh
    MARIADB_HOST=localhost
    MARIADB_PORT=3306
    MARIADB_USERNAME=root
    MARIADB_PASSWORD=${MDB_PASSWORD}
    MARIADB_DB=pyrrha
    ```
+
 2. Create python virtual environment
-   ```
+
+   ```sh
    python3 -m venv python3
    ```
+
 3. Activate virtual environment
-   ```
+
+   ```sh
    source python3/bin/activate
    ```
+
 4. Install the dependencies
-   ```
+
+   ```sh
    pip install -r requirements.txt
    ```
+
 5. Run the application
-   ```
+
+   ```sh
    python src/core_decision_flask_app.py 8080
 
 You can run this solution locally in docker as follows
@@ -99,13 +108,13 @@ You can run this solution locally in docker as follows
 
    1. Pull MariaDB from DockerHub
 
-      ```bash
+      ```sh
       docker pull mariadb 
       ```
 
    1. Run the image
 
-      ```bash
+      ```sh
       docker run --rm -p 3306:3306 --name pyrrha-mariadb -e MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=true -d mariadb
       ```
 
@@ -113,34 +122,37 @@ You can run this solution locally in docker as follows
 
 1. Create Python virtual environment
 
-   ```bash
+   ```sh
    python3 -m venv python3
    ```
 
 1. Activate virtual environment
 
-   ```bash
+   ```sh
    source python3/bin/activate
    ```
 
 1. Run the application
 
-   ```bash
+   ```sh
    python src/core_decision_flask_app.py 8080
    ```
-        starting application
-        * Serving Flask app "core_decision_flask_app" (lazy loading)
-        * Environment: production
-        WARNING: Do not use the development server in a production environment.
-        Use a production WSGI server instead.
-        * Debug mode: off
-           Use a production WSGI server instead.
-        * Debug mode: off
-        INFO:werkzeug: * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+
+   ```sh
+   starting application
+   * Serving Flask app "core_decision_flask_app" (lazy loading)
+   * Environment: production
+   WARNING: Do not use the development server in a production environment.
+   Use a production WSGI server instead.
+   * Debug mode: off
+      Use a production WSGI server instead.
+   * Debug mode: off
+   INFO:werkzeug: * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+   ```
 
 1. You should see the following output
 
-   ```bash
+   ```sh
    starting application
    * Serving Flask app "core_decision_flask_app" (lazy loading)
    * Environment: production
@@ -154,41 +166,47 @@ You can run this solution locally in docker as follows
 
 If you are running MariaDB as a docker container, we recommend you use the build file located in the [Pyrrha-Deployment-Configurations](https://github.com/Pyrrha-Platform/Pyrrha-Deployment-Configurations) repository to start the rules and decision engine service. Run the following after configuring the services as explained in [the instructions](https://github.com/Pyrrha-Platform/Pyrrha-Deployment-Configurations/blob/main/Docker_Compose.md).
 
-   ```
+   ```sh
    docker-compose up --build pyrrha-rulesdecision
    ```
+
 You can stop the services with:
-   ```
+
+   ```sh
    docker-compose stop pyrrha-rulesdecision
    ```
 
 If you want to run build and run this image as a docker container and not use docker-compose, you can follow these steps:
 
 1. Build the image
-   ```
+
+   ```sh
    docker build . -t rulesdecision
    ```
-2. Run the image using the following command. Notice we are passing in the `src/.env` file as environment variable. This will not work if MariaDB is running in a docker image as `localhost:3306` will not resolve to the right image.
-   ```
+
+1. Run the image using the following command. Notice we are passing in the `src/.env` file as environment variable. This will not work if MariaDB is running in a docker image as `localhost:3306` will not resolve to the right image.
+
+   ```sh
    docker run -p8080:8080 --env-file src/.env -t rulesdecision
    ```
-3. You should see the application logs
+
+1. You should see the application logs
 
 1. Build the image
 
-    ```bash
+    ```sh
     docker build . -t rulesdecision
     ```
 
 1. Run the image
 
-   ```bash
+   ```sh
    docker run -p8080:8080 -t rulesdecision
    ```
 
 1. You should see the application logs
 
-   ```bash
+   ```sh
    starting application
    * Serving Flask app "core_decision_flask_app" (lazy loading)
    * Environment: production
@@ -197,6 +215,7 @@ If you want to run build and run this image as a docker container and not use do
    * Debug mode: off
    * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
    ```
+
 You can also use docker-compose to run all the services by using the build file located in the [Pyrrha-Deployment-Configurations](https://github.com/Pyrrha-Platform/Pyrrha-Deployment-Configurations) repository.
 
 ## Run on Kubernetes

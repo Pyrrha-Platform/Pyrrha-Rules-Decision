@@ -10,10 +10,10 @@ Please note we have a [Code of Conduct](#code-of-conduct), please follow it in a
 ## Pull Request Process
 
 1. Fork the repository.
-2. Commit your changes to your fork.
-3. Submit a pull request.
-4. Handle any feedback before the request is merged.
-5. Accept our sincere Thank You!
+1. Commit your changes to your fork.
+1. Submit a pull request.
+1. Handle any feedback before the request is merged.
+1. Accept our sincere Thank You!
 
 ## Code of Conduct
 

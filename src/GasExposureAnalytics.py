@@ -477,7 +477,7 @@ class GasExposureAnalytics(object):
         # If there were no latest sensors readings to merge, then just set all the sensor cols to null (np.nan)
         if not latest_device_data :
             sensor_cols = list(set(longest_window_df.columns) - set([FIREFIGHTER_ID_COL, TIMESTAMP_COL]))
-            everything_for_1_min_df = everything_for_1_min_df.assign(**{col:np.NaN for col in sensor_cols})
+            everything_for_1_min_df = everything_for_1_min_df.assign(**{col:np.nan for col in sensor_cols})
 
         # Now that we have all the informatiom, we can determine the overall Firefighter status.
         # Green/Red status boundaries are constant, yellow is configurable. If a sensor exceeded its range, then the

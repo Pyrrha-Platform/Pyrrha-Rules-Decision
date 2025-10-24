@@ -36,7 +36,7 @@ GREEN = 1
 YELLOW = 2
 RED = 3
 RANGE_EXCEEDED = -1
-STATUS_UNAVAILABLE = np.NaN
+STATUS_UNAVAILABLE = np.nan
 STATUS_LABEL = {GREEN: 'Green', YELLOW: 'Yellow', RED: 'Red', RANGE_EXCEEDED: 'Sensor Range Exceeded', STATUS_UNAVAILABLE: 'Unavailable'}
 
 # ---------------------------------------

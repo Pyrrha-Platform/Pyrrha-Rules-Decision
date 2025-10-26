@@ -44,7 +44,7 @@ DB_ENGINE = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URI)
 ANALYTICS_TABLE = 'firefighter_status_analytics'
 FIREFIGHTER_ID_COL = 'firefighter_id'
 TIMESTAMP_COL = 'timestamp_mins'
-STATUS_LED_COL = 'analytics_status_LED'
+STATUS_LED_COL = 'analytics_status_led'
 
 # We initialize the pyrrha Analytics engine.
 per_minute_analytics = GasExposureAnalytics()

@@ -17,7 +17,7 @@ FIREFIGHTER_ID_COL_TYPE = sqlalchemy.types.VARCHAR(length=20)
 TIMESTAMP_COL = 'timestamp_mins'
 # Normally the 'analytics' LED color will be the same as the 'device' LED color, but in a disconnected scenario, they
 # may be different. We want to capture both. 
-STATUS_LED_COL = 'analytics_status_LED'
+STATUS_LED_COL = 'analytics_status_led'
 TWA_SUFFIX = '_twa'
 GAUGE_SUFFIX = '_gauge'
 MIN_SUFFIX = '_%smin'

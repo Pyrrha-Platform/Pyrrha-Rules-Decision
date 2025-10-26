@@ -9,7 +9,7 @@ import logging
 # Constants / definitions
 
 # Database constants
-SENSOR_LOG_TABLE = 'firefighter_sensor_log'
+DEVICE_LOG_TABLE = 'firefighter_device_log'
 ANALYTICS_TABLE = 'firefighter_status_analytics'
 FIREFIGHTER_ID_COL = 'firefighter_id'
 # mySQL needs to be told the firefighter_id column type explicitly in order to generate correct SQL.
@@ -47,14 +47,14 @@ SUPPORTED_GASES_PROPERTY = 'supported_gases'
 YELLOW_WARNING_PERCENT_PROPERTY = 'yellow_warning_percent'
 SAFE_ROUNDING_FACTORS_PROPERTY = 'safe_rounding_factors'
 GAS_LIMITS_PROPERTY = 'gas_limits'
-AUTOFILL_MINS_PROPERTY = 'autofill_missing_sensor_logs_up_to_N_mins'
+AUTOFILL_MINS_PROPERTY = 'autofill_missing_device_logs_up_to_N_mins'
 
-# Sensor range limitations. These are intentionally hard-coded and not configured. They're used
-# to 1. Cross-check that the PPM limits configured for each time-window respects the sensitivity
-# range of the sensors and 2. Check when sensor values have gone out of range.
-SENSOR_RANGE_PPM  = {
-    'carbon_monoxide'  : {'min' : 1   , 'max' : 1000}, # CJMCU-4541 / MICS-4514 Sensor
-    'nitrogen_dioxide' : {'min' : 0.05, 'max' : 10  }  # CJMCU-4541 / MICS-4514 Sensor
+# Device range limitations. These are intentionally hard-coded and not configured. They're used
+# to: 1. Double check that the gas limits configured are within the measurement and reporting
+# range of the devices and 2. Check when device values have gone out of range.
+DEVICE_RANGE_PPM  = {
+    'carbon_monoxide'  : {'min' : 1   , 'max' : 1000}, # CJMCU-4541 / MICS-4514 Device
+    'nitrogen_dioxide' : {'min' : 0.05, 'max' : 10  }  # CJMCU-4541 / MICS-4514 Device
 }
 
 
@@ -88,33 +88,33 @@ class GasExposureAnalytics(object):
             self.logger.critical(message)
             critical_config_issues += [message]
 
-        # For each supported gas, check that limits PPM configuration is within that sensor's range.
-        # The limits must be less than the range of the sensor. For best reporting, the range should be at least
+        # For each supported gas, check that limits PPM configuration is within that device's range.
+        # The limits must be less than the range of the device. For best reporting, the range should be at least
         # two or more times the upper limit and a warning will be produced if this is not the case. To to illustrate
         # why: Say a firefighter experiences [30mins at 1ppm. Then 30mins at 25ppm] and the 1hr limit is 10ppm.  Then
         # one hour into the fire, this firefighter has experienced an average of 13ppm per hour, well over the 10ppm
-        # limit - their status should be ‘Red’. However, if the range of the sensor is 0-10ppm, then the command center
+        # limit - their status should be 'Red'. However, if the range of the device is 0-10ppm, then the command center
         # would actually see their status as *Range Exceeded* (not Red, Yellow or Green), which is not very helpful.
         # It's essentially saying "this firefighter's average exposure is unknown - it may be OK or it may not.
-        # Prometeo can't tell, because the sensors aren't sensitive enough for these conditions". For the firefighter
-        # to get an accurate report, this sensor would need to have a range of at least 25ppm (and likely more),
+        # Prometeo can't tell, because the devices aren't sensitive enough for these conditions". For the firefighter
+        # to get an accurate report, this device would need to have a range of at least 25ppm (and likely more),
         # so that exposure could be accurately measured and averaged to 13ppm.
-        # (Note: the sensor returns *Range Exceeded* to prevent incorrect PPM averages from being calculated.
+        # (Note: the device returns *Range Exceeded* to prevent incorrect PPM averages from being calculated.
         #        e.g. in the above scenario, we do not want to incorrectly calculate an average of 5.5ppm (Green) from a
-        #        sensor showing 30mins at 1ppm and 30mins at 10ppm, the max the sensor can 'see').
+        #        device showing 30mins at 1ppm and 30mins at 10ppm, the max the device can 'see').
         for gas in self.SUPPORTED_GASES :
             limits = [window[GAS_LIMITS_PROPERTY][gas] for window in self.WINDOWS_AND_LIMITS]
-            if ( (min(limits) < SENSOR_RANGE_PPM[gas]['min']) or (max(limits) > SENSOR_RANGE_PPM[gas]['max']) ) : 
+            if ( (min(limits) < DEVICE_RANGE_PPM[gas]['min']) or (max(limits) > DEVICE_RANGE_PPM[gas]['max']) ) : 
                 valid_config = False
-                message = ("%s : One or more of the '%s' configurations %s is incompatible with the range of the '%s' sensor (min: %s, max: %s).") \
-                           % (config_filename, GAS_LIMITS_PROPERTY, limits, gas, SENSOR_RANGE_PPM[gas]['min'], SENSOR_RANGE_PPM[gas]['max'])
+                message = ("%s : One or more of the '%s' configurations %s is incompatible with the range of the '%s' device (min: %s, max: %s).") \
+                           % (config_filename, GAS_LIMITS_PROPERTY, limits, gas, DEVICE_RANGE_PPM[gas]['min'], DEVICE_RANGE_PPM[gas]['max'])
                 self.logger.critical(message)
                 critical_config_issues += [message]
-            if ((max(limits)*2) > SENSOR_RANGE_PPM[gas]['max']) : 
+            if ((max(limits)*2) > DEVICE_RANGE_PPM[gas]['max']) : 
                 # This is valid, but not optimal. Produce a warning.
-                message = ("%s : One or more of the '%s' configurations %s is very close to the range of the '%s' sensor (min: %s, max: %s)." +
-                           "\nSensors shoud have a much larger range than the limits - e.g. 2x at a minimum .") \
-                           % (config_filename, GAS_LIMITS_PROPERTY, limits, gas, SENSOR_RANGE_PPM[gas]['min'], SENSOR_RANGE_PPM[gas]['max'])
+                message = ("%s : One or more of the '%s' configurations %s is very close to the range of the '%s' device (min: %s, max: %s)." +
+                           "\nDevices should have a much larger range than the limits - e.g. 2x at a minimum .") \
+                           % (config_filename, GAS_LIMITS_PROPERTY, limits, gas, DEVICE_RANGE_PPM[gas]['min'], DEVICE_RANGE_PPM[gas]['max'])
                 self.logger.warning(message)
 
         # Check there's a valid definition of yellow - should be a percentage between 1 and 99
@@ -154,7 +154,7 @@ class GasExposureAnalytics(object):
 
     # Create an instance of the Prometeo Gas Exposure Analytics, initialising it with a data source and an appropriate
     # configuration file.
-    # list_of_csv_files : Use the supplied CSV files as sensor data instead of the Prometeo DB, so that tests can test
+    # list_of_csv_files : Use the supplied CSV files as device data instead of the Prometeo DB, so that tests can test
     #                     against a known data. This option should not be used at runtime.
     # config_filename   : Allow overriding TWA time-window configurations, so that tests can test against a known
     #                     configuration. This option should not be used at runtime, as prometeo uses a relational
@@ -172,7 +172,7 @@ class GasExposureAnalytics(object):
         # WINDOWS_AND_LIMITS   : A list detailing every supported time-window over which to calcuate the time-weighted
         #   average (label, number of minutes and gas limit gauges for each window) - e.g. from NIOSH, ACGIH, EU-OSHA.
         self.WINDOWS_AND_LIMITS = self.CONFIGURATION[WINDOWS_AND_LIMITS_PROPERTY]
-        # SUPPORTED_GASES   : The list of gases that Prometeo devices currently have sensors for.
+        # SUPPORTED_GASES   : The list of gases that Prometeo devices currently have devices for.
         #   To automatically enable analytics for new gases, simply add them to this list.
         self.SUPPORTED_GASES = self.CONFIGURATION[SUPPORTED_GASES_PROPERTY]
         # YELLOW_WARNING_PERCENT : yellow is a configurable percentage - the status LED will go yellow when any gas 
@@ -189,7 +189,7 @@ class GasExposureAnalytics(object):
         # AUTOFILL_MINS: A buffer of N mins (e.g. 10 mins) during which the system will assume any missing data just
         #                means a device is disconnected and the data is temporarily delayed. It will 'treat' the
         #                missing data (e.g. by substituting an average). After this number of minutes of missing
-        #                sensor data, the system will stop estimating and assume the firefighter has powered  off their
+        #                device data, the system will stop estimating and assume the firefighter has powered  off their
         #                device and left the event.
         self.AUTOFILL_MINS = self.CONFIGURATION[AUTOFILL_MINS_PROPERTY]
 
@@ -217,7 +217,7 @@ class GasExposureAnalytics(object):
         if list_of_csv_files is not None : 
             self._from_db = False
 
-            self.logger.info("Taking sensor readings *** from CSV ***")
+            self.logger.info("Taking device readings *** from CSV ***")
             # Allow clients to pass either single (non-list) CSV file path, or a list of CSV file paths
             if not isinstance(list_of_csv_files, list) : list_of_csv_files = [list_of_csv_files]
             dataframes = []
@@ -226,14 +226,14 @@ class GasExposureAnalytics(object):
                 # assert FIREFIGHTER_ID_COL in df.columns, "CSV files is missing key columns %s" % (required_cols)
                 dataframes.append(df)
             # Merge the dataframes (also pre-sort, to speed up test runs and enable debug slicing on the index)
-            self._sensor_log_from_csv_df = pd.concat(dataframes).sort_index()
+            self._device_log_from_csv_df = pd.concat(dataframes).sort_index()
 
 
-    # Query the last N hours of sensor logs, where N is the longest configured time-window length. As with all methods
-    # in this class, sensor data is assumed to be keyed on the floor(minute) timestamp when it was captured - i.e.
-    # a sensor value captured at 12:00:05 is stored against a timestamp of 12:00:00.
-    # block_end : The datetime from which to look back when reading the sensor logs (e.g. 'now').
-    def _get_block_of_sensor_readings(self, block_end) :
+    # Query the last N hours of device logs, where N is the longest configured time-window length. As with all methods
+    # in this class, device data is assumed to be keyed on the floor(minute) timestamp when it was captured - i.e.
+    # a device value captured at 12:00:05 is stored against a timestamp of 12:00:00.
+    # block_end : The datetime from which to look back when reading the device logs (e.g. 'now').
+    def _get_block_of_device_readings(self, block_end) :
         
         # Get the start of the time block to read - i.e. the end time, minus the longest window we're interested in.
         # Add 1 min 'correction' to the start times because both SQL 'between' and Pandas slices are *in*clusive and we
@@ -242,26 +242,26 @@ class GasExposureAnalytics(object):
         longest_block = max([window['mins'] for window in self.WINDOWS_AND_LIMITS])
         block_start = block_end - pd.Timedelta(minutes = longest_block) + one_minute # e.g. 8hrs ago
 
-        message = ("Reading sensor log in range [%s to %s]" % (block_start.isoformat(), block_end.isoformat()))
+        message = ("Reading device log in range [%s to %s]" % (block_start.isoformat(), block_end.isoformat()))
         if not self._from_db : message += " (local CSV file mode)"
         self.logger.info(message)
 
-        sensor_log_df = pd.DataFrame()
+        device_log_df = pd.DataFrame()
         ff_time_spans_df = None
         if self._from_db :
             # Get from database with a non-blocking read (this type of SELECT is non-blocking on
             # MariaDB/InnoDB - ref: https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html)
-            sql = ("SELECT * FROM " + SENSOR_LOG_TABLE + " where " + TIMESTAMP_COL
+            sql = ("SELECT * FROM " + DEVICE_LOG_TABLE + " where " + TIMESTAMP_COL
                     + " between '" + block_start.isoformat() + "' and '" + block_end.isoformat() + "'")
-            sensor_log_df = (pd.read_sql_query(sql, self._db_engine,
+            device_log_df = (pd.read_sql_query(sql, self._db_engine,
                                               parse_dates=[TIMESTAMP_COL], index_col=TIMESTAMP_COL))
 
         else :
-            # Get from local CSV files - useful when testing (e.g. using known sensor test data)
-            sensor_log_df = self._sensor_log_from_csv_df.loc[block_start:block_end,:].copy()
+            # Get from local CSV files - useful when testing (e.g. using known device test data)
+            device_log_df = self._device_log_from_csv_df.loc[block_start:block_end,:].copy()
 
-        if (sensor_log_df.empty) :
-            self.logger.info("No 'live' sensor records found in range [%s to %s]"
+        if (device_log_df.empty) :
+            self.logger.info("No 'live' device records found in range [%s to %s]"
                              % (block_start.isoformat(), block_end.isoformat()))
             # Reset the cache of 'earliest and latest observed data points for each firefighter'.
             # If we didn't do this, firefighters 'data time span' would stretch over multiple days. We want
@@ -270,7 +270,7 @@ class GasExposureAnalytics(object):
 
         else : 
             # sort is required for several operations, e.g. slicing, re-sampling, etc. Do it once, up-front.
-            sensor_log_df = sensor_log_df.sort_index()
+            device_log_df = device_log_df.sort_index()
 
             # Update the cache of 'earliest and latest observed data points for each firefighter'. As firefighters come
             # online (and as data comes in after an outage), each new chunk may contain records for firefighters that
@@ -279,7 +279,7 @@ class GasExposureAnalytics(object):
             #                 join an event (and different for each Firefighter)
             # [DATA_END]  : the latest observed data point for each firefighter so far - a moving target, but
             #                 fixed for *this* chunk of data (and potentially different for each Firefighter)
-            ff_time_spans_in_this_block_df = (pd.DataFrame(sensor_log_df.reset_index()
+            ff_time_spans_in_this_block_df = (pd.DataFrame(device_log_df.reset_index()
                                                 .groupby(FIREFIGHTER_ID_COL)
                                                 [TIMESTAMP_COL].agg(['min', 'max']))
                                                 .rename(columns = {'min':DATA_START, 'max':DATA_END}))
@@ -301,41 +301,41 @@ class GasExposureAnalytics(object):
             # Add a buffer of N mins (e.g. 10 mins) to the 'data end'. The system will assume up to this
             # many minutes of missing data just means a device is disconnected and the data is temporarily delayed.
             # It will 'treat' the missing data (e.g. by substituting an average). After this number of minutes of
-            # missing sensor data, the system will stop estimating and assume the firefighter has powered 
+            # missing device data, the system will stop estimating and assume the firefighter has powered 
             # off their device and left the event.
             ff_time_spans_df.loc[:, DATA_END] += pd.Timedelta(minutes = self.AUTOFILL_MINS)
 
-        return sensor_log_df, ff_time_spans_df
+        return device_log_df, ff_time_spans_df
 
 
     # Given up to 8 hours of data, calculates the time-weighted average and limit gauge (%) for all firefighters, for
     # all supported gases, for all configured time periods.
-    # sensor_log_chunk_df: A time-indexed dataframe covering up to 8 hours of sensor data for all firefighters,
+    # device_log_chunk_df: A time-indexed dataframe covering up to 8 hours of device data for all firefighters,
     #                      for all supported gases. Requires firefighterID and supported gases as columns.
     # ff_time_spans_df   : A dataset containing the 'earliest and latest observed data points for each 
     #                      firefighter'. Necessary for the AUTOFILL_MINS functionality.
     # timestamp_key :    The minute-quantized timestamp key for which to calculate time-weighted averages.
-    def _calculate_TWA_and_gauge_for_all_firefighters(self, sensor_log_chunk_df, ff_time_spans_df, timestamp_key) :
+    def _calculate_TWA_and_gauge_for_all_firefighters(self, device_log_chunk_df, ff_time_spans_df, timestamp_key) :
 
         # We'll be processing the windows in descending order of length (mins) 
         windows_in_desc_mins_order = sorted([w for w in self.WINDOWS_AND_LIMITS], key=lambda w: w['mins'], reverse=True)
         longest_window_mins = windows_in_desc_mins_order[0]['mins'] # topmost element in the ordered windows
 
-        # Get sensor records for the longest time-window. Note: we add 1 min to the start-time, because slicing
-        # is *in*clusive and we don't want N+1 samples in an N min block of sensor records.
+        # Get device records for the longest time-window. Note: we add 1 min to the start-time, because slicing
+        # is *in*clusive and we don't want N+1 samples in an N min block of device records.
         one_minute = pd.Timedelta(minutes = 1)
         longest_window_start = timestamp_key - pd.Timedelta(minutes=longest_window_mins) + one_minute
-        longest_window_df = sensor_log_chunk_df.loc[longest_window_start:timestamp_key, :]
+        longest_window_df = device_log_chunk_df.loc[longest_window_start:timestamp_key, :]
 
-        # It's essential to know when a sensor value can't be trusted - i.e. when it has exceeded its range (signalled
-        # by the value '-1'). When this happens, we need to replace that sensor's value with something that
+        # It's essential to know when a device value can't be trusted - i.e. when it has exceeded its range (signalled
+        # by the value '-1'). When this happens, we need to replace that device's value with something that
         # both (A) identifies it as untrustworthy and (B) also causes calculated values like TWAs and Gauges to be
         # similarly identified. That value is infinity (np.inf). To to illustrate why: Say a firefighter experiences
         # [30mins at 1ppm. Then 30mins at 25ppm] and the 1 hour limit is 10ppm.  Then 1 hour into the fire, this
         # firefighter has experienced an average of 13ppm per hour, well over the 10ppm limit - their status should be
-        # ‘Red’. However, if the range of the sensor were 0-10ppm, then at best, the sensor could only provide [30mins
+        # 'Red'. However, if the range of the device were 0-10ppm, then at best, the device could only provide [30mins
         # at 1ppm. Then 30mins at 10ppm], averaging to 5.5ppm per hour which is *Green* (not Red or even Yellow).  To
-        # prevent this kind of under-reporting, the device sends '-1' to indicate that the sensor has exceeded its
+        # prevent this kind of under-reporting, the device sends '-1' to indicate that the device has exceeded its
         # range and we substitute that with infinity (np.inf), which then flows correctly through the time-weighted
         # average calculations.
         longest_window_df.loc[:, self.SUPPORTED_GASES] = (longest_window_df.loc[:, self.SUPPORTED_GASES].mask(
@@ -366,15 +366,15 @@ class GasExposureAnalytics(object):
             # If there's data for a device at 'timestamp_key', get a copy of it. While some if it is used for
             # calculating average exposures (e.g. gases, times, firefighter_id), much of it is not (e.g. temperature,
             # humidity, battery level) and this data needs to be merged back into the final dataframe.
-            latest_sensor_readings_df = (longest_window_cleaned_df
+            latest_device_readings_df = (longest_window_cleaned_df
                                         .loc[[timestamp_key],:] # the current minute
                                         .reset_index()
                                         .set_index([FIREFIGHTER_ID_COL, TIMESTAMP_COL])  # key to merge on at the end
                                         )
             # Store in a list for merging later on
-            latest_device_data = [latest_sensor_readings_df] 
+            latest_device_data = [latest_device_readings_df] 
         else : 
-            message = "No 'live' sensor records found at timestamp %s. Calculating Time-Weighted Averages anyway..."
+            message = "No 'live' device records found at timestamp %s. Calculating Time-Weighted Averages anyway..."
             self.logger.info(message % (timestamp_key.isoformat()))
         
         # Now the main body of work - iterate over the time windows, calculate their time-weighted averages & limit
@@ -383,7 +383,7 @@ class GasExposureAnalytics(object):
         calculations_for_all_windows = [] # list of results from each window, for merging at the end
         for time_window in windows_in_desc_mins_order :
             
-            # Get the relevant slice of the data for this specific time-window, for all supported gas sensor readings
+            # Get the relevant slice of the data for this specific time-window, for all supported gas device readings
             # (and excluding all other columns)
             window_mins = time_window['mins']
             window_length = pd.Timedelta(minutes = window_mins)
@@ -399,17 +399,17 @@ class GasExposureAnalytics(object):
             assert(window_df.groupby(FIREFIGHTER_ID_COL).size().max() <= window_mins)
 
             # Calculate time-weighted average exposure for this time-window.
-            # A *time-weighted* average, means each sensor reading is multiplied by the length of time the reading
+            # A *time-weighted* average, means each device reading is multiplied by the length of time the reading
             # covers, before dividing by the total time covered. This can get very complicated if readings are unevenly
             # spaced or if they get lost, or sent late due to connectivity dropouts. So Prometeo makes two design
             # choices that account for these issues, and simplify calculations (reducing opportunities for error).
             # (1) The system takes exactly one reading per minute, no more & no less, so the multiplication factor for 
             #     every reading is always 1.
-            # (2) Any missing/lost sensor readings are approximated by using the average value for that sensor over the
+            # (2) Any missing/lost device readings are approximated by using the average value for that device over the
             #     time-window in question. (Care needs to be taken to ensure that calculations don't inadvertently 
             #     approximate them as '0ppm').
             # Since the goal we're after here is to get the average over a time-window, we don't need to actually 
-            # fill-in the missing entries, we can just get the average of the available sensor readings.
+            # fill-in the missing entries, we can just get the average of the available device readings.
             window_twa_df = window_df.groupby(FIREFIGHTER_ID_COL).mean()
 
             # The average alone is not enough, we also have to adjust it to reflect how much of the time-window the
@@ -418,7 +418,7 @@ class GasExposureAnalytics(object):
             # the next 15 mins. What do we show the command center user? It's over the limit for an 8hr average, but
             # we're only 30mins into that 8-hour period. So we adjust the TWA to the proportion of the time window
             # that has actually elapsed. Note: this implicitly assumes that firefighter exposure is zero before the
-            # first recorded sensor value and after the last recorded value.
+            # first recorded device value and after the last recorded value.
 
             # To work out the window proportion, we (A) calculate the time overlap between the moving window and the
             # available data timespans for each Firefighter, then (B) Divide the overlap by the total length of the
@@ -471,16 +471,16 @@ class GasExposureAnalytics(object):
             # Now save the results from this time window as a single merged dataframe (TWAs and Limit Gauges)
             calculations_for_all_windows.append(pd.concat([window_twa_df, window_gauge_df], axis='columns'))
 
-        # Merge 'everything' for this time step - TWAs & Gauges from all time windows, latest sensors readings, ...
+        # Merge 'everything' for this time step - TWAs & Gauges from all time windows, latest device readings, ...
         everything_for_1_min_df = pd.concat(latest_device_data + calculations_for_all_windows, axis='columns')
 
-        # If there were no latest sensors readings to merge, then just set all the sensor cols to null (np.nan)
+        # If there were no latest device readings to merge, then just set all the device cols to null (np.nan)
         if not latest_device_data :
-            sensor_cols = list(set(longest_window_df.columns) - set([FIREFIGHTER_ID_COL, TIMESTAMP_COL]))
-            everything_for_1_min_df = everything_for_1_min_df.assign(**{col:np.nan for col in sensor_cols})
+            device_cols = list(set(longest_window_df.columns) - set([FIREFIGHTER_ID_COL, TIMESTAMP_COL]))
+            everything_for_1_min_df = everything_for_1_min_df.assign(**{col:np.nan for col in device_cols})
 
         # Now that we have all the informatiom, we can determine the overall Firefighter status.
-        # Green/Red status boundaries are constant, yellow is configurable. If a sensor exceeded its range, then the
+        # Green/Red status boundaries are constant, yellow is configurable. If a device exceeded its range, then the
         # Firefighter's status cannot be accurately determined (and the Gauge value will be np.inf)
         yellow_range_start = self.YELLOW_WARNING_PERCENT - 1
         everything_for_1_min_df[STATUS_LED_COL] = pd.cut(
@@ -488,7 +488,7 @@ class GasExposureAnalytics(object):
             bins=[GREEN_RANGE_START, yellow_range_start, RED_RANGE_START, RED_RANGE_END, np.inf], include_lowest=True,
             labels=[GREEN,YELLOW,RED,RANGE_EXCEEDED])
 
-        # Use the Prometeo constant for 'out-of-range sensor value' rather than np.inf from here on.
+        # Use the Prometeo constant for 'out-of-range device value' rather than np.inf from here on.
         # (np.inf is useful for the math, but not for communicating / storing / displaying).
         # Here we convert np.inf values in gas readings, TWAs and Gauges to a Prometeo constant.
         gas_cols = everything_for_1_min_df.columns[everything_for_1_min_df.columns.str.contains("|".join(self.SUPPORTED_GASES))]
@@ -504,7 +504,7 @@ class GasExposureAnalytics(object):
 
 
     # This is 'main' - runs all of the core analytics for Prometeo in a given minute.
-    # current_utc_timestamp : The UTC datetime for which to calculate sensor analytics. Defaults to 'now' (UTC).
+    # current_utc_timestamp : The UTC datetime for which to calculate device analytics. Defaults to 'now' (UTC).
     # commit : Utility flag for unit testing - defaults to committing analytic results to
     #          the database. Setting commit=False prevents unit tests from writing to the database.
     def run_analytics (self, current_utc_timestamp=None, commit=True) :
@@ -521,9 +521,9 @@ class GasExposureAnalytics(object):
         # Drop the '+00:00' suffix from the standard UTC time (because our mariadb DB is not time-zone aware)
         if current_utc_timestamp.tzinfo is not None: current_utc_timestamp = current_utc_timestamp.tz_convert(None)
 
-        # Very important: All sensor records are keyed on the FF id and the minute in which they arrive. So if 'now'
+        # Very important: All device records are keyed on the FF id and the minute in which they arrive. So if 'now'
         # is 08:10:11 (11s past 8.10am) then there's another 49s to go before we can expect all the similarly-keyed
-        # (08:10:00) sensor records to have arrived. Hence the actual 'latest' data that we're interested in running
+        # (08:10:00) device records to have arrived. Hence the actual 'latest' data that we're interested in running
         # analytics for is "any data keyed 08:09:00" i.e. (now.floor() minus 1 minute) - that 1 minute is the arrival
         # buffer for the data.
         timestamp_key = current_utc_timestamp.floor(freq='min') - pd.Timedelta(minutes = 1)
@@ -532,23 +532,23 @@ class GasExposureAnalytics(object):
         if not self._from_db : message += " (local CSV file mode)"
         self.logger.info(message)
 
-        # Read a block of sensor logs from the DB, covering the longest window we're calculating over (usually 8hrs).
-        # Note: This has the advantage of always including all known sensor data, even when that data was delayed due
+        # Read a block of device logs from the DB, covering the longest window we're calculating over (usually 8hrs).
+        # Note: This has the advantage of always including all known device data, even when that data was delayed due
         # to loss of connectivity. That makes the 'right now' limit detection as good quality as it can be... at the
         # cost of the DB reads not being as efficient as they could be. (e.g. it would be more efficient to read 48
-        # previously-calculated 10-min TWAs and average *those*, instead of averaging 480 raw 1-min sensor logs
+        # previously-calculated 10-min TWAs and average *those*, instead of averaging 480 raw 1-min device logs
         # (a word of caution - the average of an average is NOT automatically a valid average, care needs to be taken
         # with denominators...). This would be more efficient, but poorer quality, because the 'right now' limit
         # detection would be based on derived values containing assumptions about missing data). So for now, we
         # prioritise quality and resist "premature optimisation/efficiency" at least until the system is
         # sound / correct, after which optimisation tradeoffs can be prioritised as needed.
-        sensor_log_df, ff_time_spans_df = self._get_block_of_sensor_readings(timestamp_key)
+        device_log_df, ff_time_spans_df = self._get_block_of_device_readings(timestamp_key)
 
         # Stop if there's no data (e.g. (1) after the system is booted but before any records have come in. (2) 8+ hours after an event
-        if (sensor_log_df.empty) : return
+        if (device_log_df.empty) : return
         
         # Work out all the time-weighted averages and corresponding limit gauges for all firefighters, all limits and all gases.
-        analytics_df = self._calculate_TWA_and_gauge_for_all_firefighters(sensor_log_df, ff_time_spans_df, timestamp_key)
+        analytics_df = self._calculate_TWA_and_gauge_for_all_firefighters(device_log_df, ff_time_spans_df, timestamp_key)
 
         if commit :
             analytics_df.to_sql(ANALYTICS_TABLE, self._db_engine, if_exists='append', dtype={FIREFIGHTER_ID_COL:FIREFIGHTER_ID_COL_TYPE})

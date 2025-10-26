@@ -1,1 +1,1 @@
-from .GasExposureAnalytics import GasExposureAnalytics
+from .gas_exposure_analytics import GasExposureAnalytics

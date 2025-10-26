@@ -13,7 +13,7 @@ DEVICE_LOG_TABLE = 'firefighter_device_log'
 ANALYTICS_TABLE = 'firefighter_status_analytics'
 FIREFIGHTER_ID_COL = 'firefighter_id'
 # mySQL needs to be told the firefighter_id column type explicitly in order to generate correct SQL.
-FIREFIGHTER_ID_COL_TYPE = sqlalchemy.types.VARCHAR(length=20)
+FIREFIGHTER_ID_COL_TYPE = sqlalchemy.types.INTEGER
 TIMESTAMP_COL = 'timestamp_mins'
 # Normally the 'analytics' LED color will be the same as the 'device' LED color, but in a disconnected scenario, they
 # may be different. We want to capture both. 

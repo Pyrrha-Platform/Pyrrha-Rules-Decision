@@ -20,7 +20,7 @@ gunicorn==23.0.0
 idna==3.10
 importlib-resources==6.4.5
 itsdangerous==2.2.0
-Jinja2==3.1.4
+Jinja2==3.1.6
 jsonschema==4.23.0
 mariadb==1.1.11
 MarkupSafe==2.1.5

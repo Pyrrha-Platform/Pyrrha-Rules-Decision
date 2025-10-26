@@ -10,5 +10,5 @@
 "supported_gases" :["carbon_monoxide", "nitrogen_dioxide"],
 "yellow_warning_percent" : 80,
 "safe_rounding_factors" : {"carbon_monoxide": 1, "nitrogen_dioxide": 2},
-"autofill_missing_sensor_logs_up_to_N_mins" : 10
+"autofill_missing_device_logs_up_to_N_mins" : 10
 }

@@ -1,16 +1,27 @@
-FROM python:3.8.12-bullseye as build
+FROM python:3.12 AS build
 
 WORKDIR /usr/app
 RUN python -m venv /usr/app/venv
 ENV PATH="/usr/app/venv/bin:$PATH"
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    pkg-config \
+    python3-dev \
+    libmariadb3 \
+    libmariadb-dev \
+    libmariadb-dev-compat \
+    && rm -rf /var/lib/apt/lists/*
 
-FROM python:3.8.12-slim-bullseye@sha256:d31a1beb6ccddbf5b5c72904853f5c2c4d1f49bb8186b623db0b80f8c37b5899
+COPY requirements.txt .
+RUN pip install --upgrade pip wheel setuptools \
+    && pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.12-slim-trixie
 
 RUN apt-get update &&\
-    apt-get --no-install-recommends -y install curl=7.74.* &&\
+    apt-get --no-install-recommends -y install curl &&\
     rm -rf /var/lib/apt/lists/* &&\
     groupadd -g 999 python &&\
     useradd -u 999 -g python python &&\

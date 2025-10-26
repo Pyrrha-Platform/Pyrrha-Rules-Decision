@@ -1,10 +1,10 @@
 import os
 from flask import Flask, Response, jsonify, abort
-from flask_restplus import Api, Resource, fields, reqparse
+from flask_restx import Api, Resource, fields, reqparse
 from flask_cors import CORS, cross_origin
 import json
 import pandas as pd
-from GasExposureAnalytics import GasExposureAnalytics
+from gas_exposure_analytics import GasExposureAnalytics
 from dotenv import load_dotenv
 import time
 import atexit
@@ -40,23 +40,23 @@ SQLALCHEMY_DATABASE_URI = ("mysql+pymysql://"+os.getenv('MARIADB_USERNAME')
                             +"@"+os.getenv("MARIADB_HOST")
                             +":"+str(os.getenv("MARIADB_PORT"))
                             +"/"+str(os.getenv("MARIADB_DB")))
-DB_ENGINE = sqlalchemy.MetaData(SQLALCHEMY_DATABASE_URI).bind
+DB_ENGINE = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URI)
 ANALYTICS_TABLE = 'firefighter_status_analytics'
 FIREFIGHTER_ID_COL = 'firefighter_id'
 TIMESTAMP_COL = 'timestamp_mins'
-STATUS_LED_COL = 'analytics_status_LED'
+STATUS_LED_COL = 'analytics_status_led'
 
 # We initialize the pyrrha Analytics engine.
-perMinuteAnalytics = GasExposureAnalytics()
+per_minute_analytics = GasExposureAnalytics()
 
 
 
 # Calculates Time-Weighted Average exposures and exposure-limit status 'gauges' for all firefighters for the last minute.
-def callGasExposureAnalytics():
+def call_gas_exposure_analytics():
     logger.info('Running analytics')
 
     # Run all of the core analytics for Prometeo for a given minute.
-    status_updates_df = perMinuteAnalytics.run_analytics()
+    status_updates_df = per_minute_analytics.run_analytics()
 
     # # TODO: Pass all status details and gauges on to the dashboard via an update API
     # status_updates_json = None # Information available for the current minute (may be None)
@@ -73,7 +73,7 @@ def callGasExposureAnalytics():
 # Start up a scheduled job to run once per minute
 ANALYTICS_FREQUENCY_SECONDS = 60
 scheduler = BackgroundScheduler()
-scheduler.add_job(func=callGasExposureAnalytics, trigger="interval", seconds=ANALYTICS_FREQUENCY_SECONDS)
+scheduler.add_job(func=call_gas_exposure_analytics, trigger="interval", seconds=ANALYTICS_FREQUENCY_SECONDS)
 scheduler.start()
 # Shut down the scheduler when exiting the app
 atexit.register(lambda: scheduler.shutdown())
@@ -101,7 +101,7 @@ def getStatus():
 
         # Read the requested Firefighter status
         sql = ('SELECT '+FIREFIGHTER_ID_COL+', '+TIMESTAMP_COL+', '+STATUS_LED_COL+' FROM '+ANALYTICS_TABLE+
-            ' WHERE '+FIREFIGHTER_ID_COL+' = "'+firefighter_id+'" AND '+TIMESTAMP_COL+' = "'+timestamp_mins+'"')
+            ' WHERE '+FIREFIGHTER_ID_COL+' = '+str(firefighter_id)+' AND '+TIMESTAMP_COL+' = "'+timestamp_mins+'"')
 
         logger.info('entering GET status')
         logger.info(sql)
@@ -145,7 +145,7 @@ def getStatusDetails():
 
         # Read the requested Firefighter status
         sql = ('SELECT * FROM '+ANALYTICS_TABLE+
-            ' WHERE '+FIREFIGHTER_ID_COL+' = "'+firefighter_id+'" AND '+TIMESTAMP_COL+' = "'+timestamp_mins+'"')
+            ' WHERE '+FIREFIGHTER_ID_COL+' = '+str(firefighter_id)+' AND '+TIMESTAMP_COL+' = "'+timestamp_mins+'"')
         firefighter_status_df = pd.read_sql_query(sql, DB_ENGINE)
 
         # Return 404 (Not Found) if no record is found
@@ -171,7 +171,7 @@ def getStatusDetails():
 def getConfiguration():
 
     try:
-        configuration = perMinuteAnalytics.CONFIGURATION
+        configuration = per_minute_analytics.CONFIGURATION
         # Return 404 (Not Found) if the configuration doesn't exist
         if (configuration is None):
             logger.error('getConfiguration: No configuration found.')

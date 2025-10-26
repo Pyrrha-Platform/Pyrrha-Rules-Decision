@@ -13,8 +13,8 @@ from src import GasExposureAnalytics
 
 # DATASET FOR TESTING
 TEST_DIR = os.path.dirname(__file__)
-TEST_DATA_CSV_FILEPATH = os.path.join(TEST_DIR, 'GasExposureAnalytics_test_dataset.csv')
-ANALYTIC_CONFIGURATION_FOR_THIS_TEST = os.path.join(TEST_DIR, 'GasExposureAnalytics_test_config.json')
+TEST_DATA_CSV_FILEPATH = os.path.join(TEST_DIR, 'gas_exposure_analytics_test_dataset.csv')
+ANALYTIC_CONFIGURATION_FOR_THIS_TEST = os.path.join(TEST_DIR, 'gas_exposure_analytics_test_config.json')
 
 # load environment variables
 SRC_DIR = os.path.join(os.path.dirname(TEST_DIR), 'src')
@@ -25,7 +25,7 @@ FIREFIGHTER_ID_COL = 'firefighter_id'
 TIMESTAMP_COL = 'timestamp_mins'
 CARBON_MONOXIDE_COL = 'carbon_monoxide'
 NITROGEN_DIOXIDE_COL = 'nitrogen_dioxide'
-STATUS_LED_COL = 'analytics_status_LED'
+STATUS_LED_COL = 'analytics_status_led'
 TWA_SUFFIX = '_twa'
 GAUGE_SUFFIX = '_gauge'
 MIN_SUFFIX = '_%smin'
@@ -36,8 +36,8 @@ GREEN = 1
 YELLOW = 2
 RED = 3
 RANGE_EXCEEDED = -1
-STATUS_UNAVAILABLE = np.NaN
-STATUS_LABEL = {GREEN: 'Green', YELLOW: 'Yellow', RED: 'Red', RANGE_EXCEEDED: 'Sensor Range Exceeded', STATUS_UNAVAILABLE: 'Unavailable'}
+STATUS_UNAVAILABLE = np.nan
+STATUS_LABEL = {GREEN: 'Green', YELLOW: 'Yellow', RED: 'Red', RANGE_EXCEEDED: 'Device Range Exceeded', STATUS_UNAVAILABLE: 'Unavailable'}
 
 # ---------------------------------------
 
@@ -46,7 +46,7 @@ logging.basicConfig(level=logging.INFO) # set to logging.INFO if you want to see
 # Unit tests for the GasExposureAnalytics class.
 class GasExposureAnalyticsTestCase(unittest.TestCase):
 
-    # Load a known sensor log, so that we can calculate gas exposure analytics for
+    # Load a known device log, so that we can calculate gas exposure analytics for
     #  it and test that they match expectations. (not doing this in setUp because
     # we don't want to re-load for every test method)
     _analytics_test = GasExposureAnalytics(TEST_DATA_CSV_FILEPATH, config_filename=ANALYTIC_CONFIGURATION_FOR_THIS_TEST)
@@ -65,8 +65,8 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     def _check_results_for_one_firefighter_one_gas(self, firefighter, timestamp_str, gas, result_fields,
                                                    expected_values, expected_status=None):
 
-        # All sensor records are keyed on the minute in which they arrive. So if 'now' is 08:10:11 (11s past 8.10am)
-        # then there's another 49s to go before we can expect all similarly-keyed (08:10:00) sensor records to have
+        # All device records are keyed on the minute in which they arrive. So if 'now' is 08:10:11 (11s past 8.10am)
+        # then there's another 49s to go before we can expect all similarly-keyed (08:10:00) device records to have
         # arrived. Hence the 'latest' data that we're interested in getting analytics for is "any data keyed 08:09:00"
         # i.e. (now.floor() minus 1 minute) - that 1 minute is the arrival buffer for the data.
         now = pd.Timestamp(timestamp_str)
@@ -147,63 +147,63 @@ class GasExposureAnalyticsTestCase(unittest.TestCase):
     # #################################################################################
     #  SPECIFIC TESTS FOR SENSITIVE REGIONS OF AN EVENT
     #
-    # e.g. just before the 1st sensor value, just after the 1st value, when a sensor drops out, when
+    # e.g. just before the 1st device value, just after the 1st value, when a device drops out, when
     # there isn't enough data to safely give a particular TWA, etc...
     # #################################################################################
 
 
-    def test_before_the_first_sensor_record_of_the_day(self):
+    def test_before_the_first_device_record_of_the_day(self):
         # The minute before the very first record of the day: no FF data yet, everything blank - assert empty
         pre_start_test_df = self._analytics_test.run_analytics(pd.Timestamp('2000-01-01 09:31:00'), commit=False)
         # Shouldn't return a dataframe
-        assert pre_start_test_df is None, "Expected to find no sensor records before the event, but actually found "\
+        assert pre_start_test_df is None, "Expected to find no device records before the event, but actually found "\
                                           + str(pre_start_test_df.index.size)
 
-    def test_first_sensor_record_of_the_day_gas1(self):
+    def test_first_device_record_of_the_day_gas1(self):
         # The very first record of the day - 1 reading for 1 firefighter!
         self._check_twas_for_one_firefighter_one_gas('0007', '2000-01-01 09:33:00', CARBON_MONOXIDE_COL,
                                                      expected_values=[0.0, 0.0, 0.0, 0.0, 0.0])
     
-    def test_first_sensor_record_of_the_day_gas2(self):
+    def test_first_device_record_of_the_day_gas2(self):
         # The very first record of the day - 1 reading for 1 firefighter!
         self._check_twas_for_one_firefighter_one_gas('0007', '2000-01-01 09:33:00', NITROGEN_DIOXIDE_COL,
                                                      expected_values=[0.0, 0.0, 0.0, 0.0, 0.0])
 
 
-    def test_missing_some_sensor_readings_in_10min_window_gas1(self):
+    def test_missing_some_device_readings_in_10min_window_gas1(self):
         # 10 min window for firefighter 0003 is only half full.
         self._check_twas_for_one_firefighter_one_gas('0003', '2000-01-01 15:03:00', CARBON_MONOXIDE_COL,
                                                      expected_values=[6.0, 6.3, 6.8, 9.6, 6.1])
     
-    def test_missing_some_sensor_readings_in_10min_window_gas2(self):
+    def test_missing_some_device_readings_in_10min_window_gas2(self):
         # 10 min window for firefighter 0003 is only half full.
         self._check_twas_for_one_firefighter_one_gas('0003', '2000-01-01 15:03:00', NITROGEN_DIOXIDE_COL,
                                                      expected_values=[0.3, 0.31, 0.34, 0.48, 0.3])
 
 
-    def test_no_sensor_readings_in_10min_window_gas1(self):
+    def test_no_device_readings_in_10min_window_gas1(self):
         # 10 min window for firefighter 0003 is now empty.
         self._check_twas_for_one_firefighter_one_gas('0003', '2000-01-01 15:08:00', CARBON_MONOXIDE_COL,
                                                      expected_values=[np.nan, 6.2, 6.7, 9.7, 6.1])
     
-    def test_no_sensor_readings_in_10min_window_gas2(self):
+    def test_no_device_readings_in_10min_window_gas2(self):
         # 10 min window for firefighter 0003 is now empty.
         self._check_twas_for_one_firefighter_one_gas('0003', '2000-01-01 15:08:00', NITROGEN_DIOXIDE_COL,
                                                      expected_values=[np.nan, 0.31, 0.33, 0.48, 0.31])
 
 
-    def test_no_sensor_readings_in_30min_window_gas1(self):
+    def test_no_device_readings_in_30min_window_gas1(self):
         # As we head out past 30 mins after the last sensor reading, the 10m and 30m TWAs drop off
         self._check_twas_for_one_firefighter_one_gas('0003', '2000-01-01 15:28:00', CARBON_MONOXIDE_COL,
                                                      expected_values=[np.nan, np.nan, 4.2, 8.8, 6.1])
     
-    def test_no_sensor_readings_in_30min_window_gas2(self):
-        # As we head out past 30 mins after the last sensor reading, the 10m and 30m TWAs drop off
+    def test_no_device_readings_in_30min_window_gas2(self):
+        # As we head out past 30 mins after the last device reading, the 10m and 30m TWAs drop off
         self._check_twas_for_one_firefighter_one_gas('0003', '2000-01-01 15:28:00', NITROGEN_DIOXIDE_COL,
                                                      expected_values=[np.nan, np.nan, 0.21, 0.44, 0.31])
 
 
-    def test_no_sensor_readings_in_30min_window_alt_gas1(self):
+    def test_no_device_readings_in_30min_window_alt_gas1(self):
         # ...same as 'test_no_sensor_readings_in_30min_window' but with another FF (so it's not just '0003')
         self._check_twas_for_one_firefighter_one_gas('0010', '2000-01-01 14:00:00', CARBON_MONOXIDE_COL,
                                                      expected_values=[np.nan, np.nan, 4.4, 7.7, 3.9])

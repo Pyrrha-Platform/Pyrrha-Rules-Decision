@@ -1,19 +1,20 @@
-import os
-from flask import Flask, Response, jsonify, abort
-from flask_restx import Api, Resource, fields, reqparse
-from flask_cors import CORS, cross_origin
-import json
-import pandas as pd
-from gas_exposure_analytics import GasExposureAnalytics
-from dotenv import load_dotenv
-import time
 import atexit
-from apscheduler.schedulers.background import BackgroundScheduler
+import json
 import logging
-import sqlalchemy
+import os
 import sys
-from flask import request
+import time
+
+import pandas as pd
+import sqlalchemy
+from apscheduler.schedulers.background import BackgroundScheduler
+from dotenv import load_dotenv
+from flask import Flask, Response, abort, jsonify, request
+from flask_cors import CORS, cross_origin
+from flask_restx import Api, Resource, fields, reqparse
 from werkzeug.exceptions import HTTPException
+
+from gas_exposure_analytics import GasExposureAnalytics
 
 # get logging level from the environment, default to INFO
 logging.basicConfig(level=os.environ.get("LOGLEVEL", logging.INFO))
@@ -28,32 +29,38 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-logger.info('starting application')
+logger.info("starting application")
 
 # On Bluemix, get the port number from the environment variable PORT
 # When running this app on the local machine, default to 8080
-port = int(os.getenv('PORT', 8080))
+port = int(os.getenv("PORT", 8080))
 
 # DB Connections and identifier constants
-SQLALCHEMY_DATABASE_URI = ("mysql+pymysql://"+os.getenv('MARIADB_USERNAME')
-                            +":"+os.getenv("MARIADB_PASSWORD")
-                            +"@"+os.getenv("MARIADB_HOST")
-                            +":"+str(os.getenv("MARIADB_PORT"))
-                            +"/"+str(os.getenv("MARIADB_DB")))
+SQLALCHEMY_DATABASE_URI = (
+    "mysql+pymysql://"
+    + os.getenv("MARIADB_USERNAME")
+    + ":"
+    + os.getenv("MARIADB_PASSWORD")
+    + "@"
+    + os.getenv("MARIADB_HOST")
+    + ":"
+    + str(os.getenv("MARIADB_PORT"))
+    + "/"
+    + str(os.getenv("MARIADB_DB"))
+)
 DB_ENGINE = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URI)
-ANALYTICS_TABLE = 'firefighter_status_analytics'
-FIREFIGHTER_ID_COL = 'firefighter_id'
-TIMESTAMP_COL = 'timestamp_mins'
-STATUS_LED_COL = 'analytics_status_led'
+ANALYTICS_TABLE = "firefighter_status_analytics"
+FIREFIGHTER_ID_COL = "firefighter_id"
+TIMESTAMP_COL = "timestamp_mins"
+STATUS_LED_COL = "analytics_status_led"
 
 # We initialize the pyrrha Analytics engine.
 per_minute_analytics = GasExposureAnalytics()
 
 
-
 # Calculates Time-Weighted Average exposures and exposure-limit status 'gauges' for all firefighters for the last minute.
 def call_gas_exposure_analytics():
-    logger.info('Running analytics')
+    logger.info("Running analytics")
 
     # Run all of the core analytics for Prometeo for a given minute.
     status_updates_df = per_minute_analytics.run_analytics()
@@ -62,7 +69,7 @@ def call_gas_exposure_analytics():
     # status_updates_json = None # Information available for the current minute (may be None)
     # if status_updates_df is not None:
     #     status_updates_json = (status_updates_df.reset_index(TIMESTAMP_COL) # index json by firefighter only
-    #                            .to_json(orient='index', date_format='iso')) # send json to dashboard 
+    #                            .to_json(orient='index', date_format='iso')) # send json to dashboard
     #
     # resp = requests.post(API_URL, json=status_updates_json)
     # if resp.status_code != EXPECTED_RESPONSE_CODE:
@@ -79,58 +86,94 @@ scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
 
-@app.route('/health', methods=['GET'])
+@app.route("/health", methods=["GET"])
 def health():
     return "healthy"
 
+
 # The ENDPOINTS
-@app.route('/get_status', methods=['GET'])
+@app.route("/get_status", methods=["GET"])
 def getStatus():
- 
+
     try:
         firefighter_id = request.args.get(FIREFIGHTER_ID_COL)
         timestamp_mins = request.args.get(TIMESTAMP_COL)
 
-        print('entering /get_status')
+        print("entering /get_status")
 
         # Return 404 (Not Found) if the record IDs are invalid
         if (firefighter_id is None) or (timestamp_mins is None):
-            logger.error('Missing parameters : '+FIREFIGHTER_ID_COL+' : '+str(firefighter_id)
-                            +', '+TIMESTAMP_COL+' : '+str(timestamp_mins))
+            logger.error(
+                "Missing parameters : "
+                + FIREFIGHTER_ID_COL
+                + " : "
+                + str(firefighter_id)
+                + ", "
+                + TIMESTAMP_COL
+                + " : "
+                + str(timestamp_mins)
+            )
             abort(404)
 
         # Read the requested Firefighter status
-        sql = ('SELECT '+FIREFIGHTER_ID_COL+', '+TIMESTAMP_COL+', '+STATUS_LED_COL+' FROM '+ANALYTICS_TABLE+
-            ' WHERE '+FIREFIGHTER_ID_COL+' = '+str(firefighter_id)+' AND '+TIMESTAMP_COL+' = "'+timestamp_mins+'"')
+        sql = (
+            "SELECT "
+            + FIREFIGHTER_ID_COL
+            + ", "
+            + TIMESTAMP_COL
+            + ", "
+            + STATUS_LED_COL
+            + " FROM "
+            + ANALYTICS_TABLE
+            + " WHERE "
+            + FIREFIGHTER_ID_COL
+            + " = "
+            + str(firefighter_id)
+            + " AND "
+            + TIMESTAMP_COL
+            + ' = "'
+            + timestamp_mins
+            + '"'
+        )
 
-        logger.info('entering GET status')
+        logger.info("entering GET status")
         logger.info(sql)
         firefighter_status_df = pd.read_sql_query(sql, DB_ENGINE)
 
-        logger.info('/get_status called!')
+        logger.info("/get_status called!")
         logger.info(sql)
 
         # Return 404 (Not Found) if no record is found
         if (firefighter_status_df is None) or (firefighter_status_df.empty):
-            logger.error('No status found for : ' + FIREFIGHTER_ID_COL + ' : ' + str(firefighter_id)
-                             + ', ' + TIMESTAMP_COL + ' : ' + str(timestamp_mins))
+            logger.error(
+                "No status found for : "
+                + FIREFIGHTER_ID_COL
+                + " : "
+                + str(firefighter_id)
+                + ", "
+                + TIMESTAMP_COL
+                + " : "
+                + str(timestamp_mins)
+            )
             abort(404)
         else:
-            firefighter_status_json = (firefighter_status_df
-                                    .rename(columns={STATUS_LED_COL: "status"}) # name as expected by client
-                                    .iloc[0,:] # convert dataframe to series (should never be more than 1 record)
-                                    .to_json(date_format='iso'))
+            firefighter_status_json = (
+                firefighter_status_df.rename(columns={STATUS_LED_COL: "status"})  # name as expected by client
+                .iloc[0, :]  # convert dataframe to series (should never be more than 1 record)
+                .to_json(date_format="iso")
+            )
             return firefighter_status_json
     except HTTPException as e:
-        logger.error(f'{e}')
+        logger.error(f"{e}")
         raise e
     except Exception as e:
         # Return 500 (Internal Server Error) if there's any unexpected errors.
-        logger.error(f'Internal Server Error: {e}')
+        logger.error(f"Internal Server Error: {e}")
         abort(500)
 
+
 # The ENDPOINTS
-@app.route('/get_status_details', methods=['GET'])
+@app.route("/get_status_details", methods=["GET"])
 def getStatusDetails():
 
     try:
@@ -139,42 +182,71 @@ def getStatusDetails():
 
         # Return 404 (Not Found) if the record IDs are invalid
         if (firefighter_id is None) or (timestamp_mins is None):
-            logger.error('Missing parameters : '+FIREFIGHTER_ID_COL+' : '+str(firefighter_id)
-                            +', '+TIMESTAMP_COL+' : '+str(timestamp_mins))
+            logger.error(
+                "Missing parameters : "
+                + FIREFIGHTER_ID_COL
+                + " : "
+                + str(firefighter_id)
+                + ", "
+                + TIMESTAMP_COL
+                + " : "
+                + str(timestamp_mins)
+            )
             abort(404)
 
         # Read the requested Firefighter status
-        sql = ('SELECT * FROM '+ANALYTICS_TABLE+
-            ' WHERE '+FIREFIGHTER_ID_COL+' = '+str(firefighter_id)+' AND '+TIMESTAMP_COL+' = "'+timestamp_mins+'"')
+        sql = (
+            "SELECT * FROM "
+            + ANALYTICS_TABLE
+            + " WHERE "
+            + FIREFIGHTER_ID_COL
+            + " = "
+            + str(firefighter_id)
+            + " AND "
+            + TIMESTAMP_COL
+            + ' = "'
+            + timestamp_mins
+            + '"'
+        )
         firefighter_status_df = pd.read_sql_query(sql, DB_ENGINE)
 
         # Return 404 (Not Found) if no record is found
         if (firefighter_status_df is None) or (firefighter_status_df.empty):
-            logger.error('No status found for : ' + FIREFIGHTER_ID_COL + ' : ' + str(firefighter_id)
-                             + ', ' + TIMESTAMP_COL + ' : ' + str(timestamp_mins))
+            logger.error(
+                "No status found for : "
+                + FIREFIGHTER_ID_COL
+                + " : "
+                + str(firefighter_id)
+                + ", "
+                + TIMESTAMP_COL
+                + " : "
+                + str(timestamp_mins)
+            )
             abort(404)
         else:
-            firefighter_status_json = (firefighter_status_df
-                                    .rename(columns={STATUS_LED_COL: "status"}) # name as expected by client
-                                    .iloc[0,:] # convert dataframe to series (should never be more than 1 record)
-                                    .to_json(date_format='iso'))
+            firefighter_status_json = (
+                firefighter_status_df.rename(columns={STATUS_LED_COL: "status"})  # name as expected by client
+                .iloc[0, :]  # convert dataframe to series (should never be more than 1 record)
+                .to_json(date_format="iso")
+            )
             return firefighter_status_json
     except HTTPException as e:
-        logger.error(f'{e}')
+        logger.error(f"{e}")
         raise e
     except Exception as e:
         # Return 500 (Internal Server Error) if there's any unexpected errors.
-        logger.error(f'Internal Server Error: {e}')
+        logger.error(f"Internal Server Error: {e}")
         abort(500)
 
-@app.route('/get_configuration', methods=['GET'])
+
+@app.route("/get_configuration", methods=["GET"])
 def getConfiguration():
 
     try:
         configuration = per_minute_analytics.CONFIGURATION
         # Return 404 (Not Found) if the configuration doesn't exist
-        if (configuration is None):
-            logger.error('getConfiguration: No configuration found.')
+        if configuration is None:
+            logger.error("getConfiguration: No configuration found.")
             abort(404)
         else:
             configuration_json = json.dumps(configuration)
@@ -182,14 +254,14 @@ def getConfiguration():
 
     # Log and propagate HTTP exceptions.
     except HTTPException as e:
-        logger.error(f'{e}')
+        logger.error(f"{e}")
         raise e
 
     except Exception as e:
         # Return 500 (Internal Server Error) if there's any unexpected errors.
-        logger.error(f'Internal Server Error: {e}')
+        logger.error(f"Internal Server Error: {e}")
         abort(500)
 
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=False)  # deploy with debug=False
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080, debug=False)  # deploy with debug=False
